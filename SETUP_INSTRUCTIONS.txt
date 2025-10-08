@@ -1,0 +1,197 @@
+=====================================
+HR MANAGEMENT SYSTEM - QUICK SETUP
+=====================================
+
+CURRENT STATUS:
+✅ PHP 8.4.11 - Ready
+✅ Node.js 22.15.0 - Ready
+✅ Frontend - Running on http://localhost:3000
+✅ MySQL - Running on port 3306
+⏳ Database - Needs setup (follow below)
+⏳ Backend - Needs to be started
+
+=====================================
+STEP 1: SET UP DATABASE
+=====================================
+
+Choose ONE method:
+
+METHOD A: Using MySQL Workbench (EASIEST)
+------------------------------------------
+1. Open MySQL Workbench
+2. Connect to your MySQL server (localhost:3306)
+3. Click "File" → "Run SQL Script"
+4. Navigate to: setup_database.sql
+5. Click "Run" (enter root password if asked)
+6. Click "File" → "Run SQL Script" again
+7. Navigate to: database/schema.sql
+8. Click "Run"
+9. Click "File" → "Run SQL Script" one more time
+10. Navigate to: create_admin_user.sql
+11. Click "Run"
+
+METHOD B: Using phpMyAdmin
+--------------------------
+1. Open phpMyAdmin in browser (usually http://localhost/phpmyadmin)
+2. Click "Import" tab
+3. Click "Choose File" and select: setup_database.sql
+4. Click "Go"
+5. Select "hr_management_system" database from left sidebar
+6. Click "Import" tab again
+7. Choose: database/schema.sql
+8. Click "Go"
+9. Click "Import" tab again
+10. Choose: create_admin_user.sql
+11. Click "Go"
+
+METHOD C: Using MySQL Command Line
+-----------------------------------
+1. Find your MySQL installation path (usually C:\Program Files\MySQL\MySQL Server 8.0\bin)
+2. Open Command Prompt as Administrator
+3. Navigate to your project:
+   cd c:\Users\ianos\work\PHP\Payroll-master
+
+4. Run these commands (replace PATH with your MySQL path):
+   "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -p < setup_database.sql
+   "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -p hr_management_system < database\schema.sql
+   "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -p < create_admin_user.sql
+
+METHOD D: Copy/Paste SQL Manually
+----------------------------------
+1. Open your MySQL client
+2. Open the file: setup_database.sql
+3. Copy all content and paste into MySQL client
+4. Execute
+5. Open: database/schema.sql
+6. Copy all and paste, execute
+7. Open: create_admin_user.sql
+8. Copy all and paste, execute
+
+=====================================
+STEP 2: START THE BACKEND
+=====================================
+
+1. Open a NEW Command Prompt window
+2. Run these commands:
+   cd c:\Users\ianos\work\PHP\Payroll-master\backend
+   php -S localhost:8000
+
+3. You should see: "PHP 8.4.11 Development Server started"
+4. KEEP THIS WINDOW OPEN!
+
+=====================================
+STEP 3: ACCESS THE SYSTEM
+=====================================
+
+1. Open your web browser
+2. Go to: http://localhost:3000
+3. You should see the login page
+
+Login Credentials:
+------------------
+Username: admin
+Password: admin123
+
+=====================================
+TROUBLESHOOTING
+=====================================
+
+Problem: "Connection error" when accessing the system
+Solution: Make sure both backend (port 8000) and MySQL (port 3306) are running
+
+Problem: "Access denied for user 'hruser'"
+Solution: The database user wasn't created. Run setup_database.sql again
+
+Problem: "Table 'users' doesn't exist"
+Solution: The schema wasn't imported. Import database/schema.sql
+
+Problem: "Invalid username or password"
+Solution: Run create_admin_user.sql to create the admin user
+
+Problem: Frontend shows blank page
+Solution: Check browser console (F12). Make sure backend is running on port 8000
+
+Problem: Cannot find MySQL path
+Solution: Check these locations:
+  - C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe
+  - C:\xampp\mysql\bin\mysql.exe
+  - C:\wamp\bin\mysql\mysql8.0.x\bin\mysql.exe
+
+=====================================
+VERIFICATION
+=====================================
+
+To verify everything is working:
+
+1. Backend running?
+   - Open: http://localhost:8000
+   - You should see some output (not "page not found")
+
+2. Database created?
+   - Open your MySQL client
+   - Check if database "hr_management_system" exists
+   - Check if it has tables (should have 40+ tables)
+
+3. Frontend working?
+   - Open: http://localhost:3000
+   - You should see the login page
+   - Logo and "HR Management System" text should be visible
+
+=====================================
+NEXT STEPS AFTER LOGIN
+=====================================
+
+1. Change admin password immediately
+   - Click on your profile (top right)
+   - Change password
+
+2. Add company details
+   - Go to Settings
+   - Add company information, KRA PIN, SHIF, NSSF numbers
+
+3. Create departments
+   - Go to Settings → Departments
+   - Add your company departments
+
+4. Add employee positions
+   - Go to Settings → Positions
+   - Define job roles
+
+5. Add your first employee
+   - Go to Employees → Add Employee
+   - Fill in all required fields
+
+=====================================
+IMPORTANT NOTES
+=====================================
+
+✅ Frontend is already running on port 3000
+✅ Database configuration is set to use: hruser/hr_password_123
+✅ All database scripts are ready to run
+
+⚠️  Default passwords are for development only!
+⚠️  Change all passwords before production use!
+⚠️  Keep both Command Prompt windows open (backend must stay running)
+
+=====================================
+SUPPORT FILES CREATED
+=====================================
+
+✅ setup_database.sql - Creates database and user
+✅ create_admin_user.sql - Creates admin login
+✅ setup_database.bat - Automated setup script (may need path adjustment)
+✅ SETUP_INSTRUCTIONS.txt - This file
+
+=====================================
+CONTACT & DOCUMENTATION
+=====================================
+
+Full Documentation:
+- README.md - Complete system overview
+- QUICK_START.md - Quick setup guide
+- INSTALLATION.md - Detailed installation
+- API_DOCUMENTATION.md - API reference
+
+=====================================
+
+Good luck! The system is ready to use once you complete the database setup above.

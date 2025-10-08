@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -X POST http://localhost:8000/api/auth.php -H \"Content-Type: application/json\" -d \"{\"\"username\"\":\"\"admin\"\",\"\"password\"\":\"\"admin123\"\"}\")",
+      "Bash(npm run dev:*)",
+      "Bash(php:*)",
+      "Bash(dir \"C:\\Users\\ianos\\work\\PHP\\Payroll-master\\frontend\\src\\services\")",
+      "Bash(dir \"C:\\Users\\ianos\\work\\PHP\\Payroll-master\\frontend\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
