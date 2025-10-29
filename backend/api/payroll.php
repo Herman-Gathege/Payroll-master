@@ -192,11 +192,100 @@ function handlePost($payrollController, $db) {
             break;
 
         case 'send_payslip':
-            // Send payslip via email
+            // Send payslip via email to employee
+            require_once __DIR__ . '/../utils/EmailService.php';
+            
             $employee_id = $data['employee_id'] ?? 0;
             $month = $data['month'] ?? date('m');
             $year = $data['year'] ?? date('Y');
-            $email = $data['email'] ?? null;
+            
+            // Get payslip data
+            $payslip = $payrollController->getPayslip($employee_id, $month, $year);
+            
+            if (!$payslip) {
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Payslip not found'
+                ]);
+                break;
+            }
+            
+            // Get employee email from database
+            $query = "SELECT e.work_email, e.personal_email, 
+                      CONCAT(e.first_name, ' ', e.last_name) as full_name,
+                      o.organization_name
+                      FROM employees e
+                      JOIN organizations o ON e.organization_id = o.id
+                      WHERE e.id = :employee_id";
+            $stmt = $db->prepare($query);
+            $stmt->bindParam(':employee_id', $employee_id);
+            $stmt->execute();
+            $employee = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$employee) {
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Employee not found'
+                ]);
+                break;
+            }
+            
+            // Use work email, fallback to personal email
+            $to_email = $employee['work_email'] ?: $employee['personal_email'];
+            
+            if (!$to_email) {
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'No email address found for employee'
+                ]);
+                break;
+            }
+            
+            // Prepare payroll data for email
+            $payroll_data = [
+                'period' => date('F Y', mktime(0, 0, 0, $month, 1, $year)),
+                'gross_pay' => $payslip['gross_pay'],
+                'total_deductions' => $payslip['total_deductions'],
+                'net_pay' => $payslip['net_pay']
+            ];
+            
+            // Send email
+            try {
+                $emailService = new EmailService();
+                $result = $emailService->sendPayslip($to_email, $employee['full_name'], $payroll_data);
+                
+                if ($result['success']) {
+                    // Log email sent in audit trail
+                    $audit_query = "INSERT INTO audit_log (
+                        user_id, user_type, action, table_name, record_id,
+                        new_values, ip_address, user_agent
+                    ) VALUES (
+                        :user_id, 'system', 'payslip_emailed', 'payroll_records', :record_id,
+                        :new_values, :ip_address, :user_agent
+                    )";
+                    
+                    $audit_stmt = $db->prepare($audit_query);
+                    $audit_stmt->execute([
+                        ':user_id' => 0,
+                        ':record_id' => $payslip['id'],
+                        ':new_values' => json_encode([
+                            'employee_id' => $employee_id,
+                            'email' => $to_email,
+                            'period' => $payroll_data['period']
+                        ]),
+                        ':ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+                        ':user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown'
+                    ]);
+                }
+                
+                echo json_encode($result);
+                
+            } catch (Exception $e) {
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Failed to send email: ' . $e->getMessage()
+                ]);
+            }
 
             $payslip = $payrollController->getPayslip($employee_id, $month, $year);
 

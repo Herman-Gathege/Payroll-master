@@ -1,21 +1,17 @@
-import axios from 'axios'
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
-const PAYROLL_API = `${API_BASE_URL}/payroll.php`
+import api from './api'
 
 /**
  * Payroll Service
- * Handles all payroll-related API calls
+ * Handles all payroll-related API calls with dual authentication support
  */
 class PayrollService {
   /**
-   * Get payroll records for a specific period
+   * Get payroll records for a specific period (Employer only)
    */
   async getPayroll(month, year) {
     try {
-      const response = await axios.get(PAYROLL_API, {
+      const response = await api.get('/employer/payroll', {
         params: {
-          action: 'get_payroll',
           month,
           year
         }
@@ -28,17 +24,40 @@ class PayrollService {
   }
 
   /**
-   * Get individual payslip
+   * Get payslips for current employee (Employee only)
+   */
+  async getMyPayslips(month, year) {
+    try {
+      const params = {}
+      if (month) params.month = month
+      if (year) params.year = year
+      
+      const response = await api.get('/employee/payslips', { params })
+      return response.data
+    } catch (error) {
+      console.error('Error fetching payslips:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Get individual payslip (Employer for any employee, Employee for self)
    */
   async getPayslip(employeeId, month, year) {
     try {
-      const response = await axios.get(PAYROLL_API, {
-        params: {
-          action: 'get_payslip',
-          employee_id: employeeId,
-          month,
-          year
-        }
+      const userType = localStorage.getItem('userType')
+      
+      if (userType === 'employee') {
+        // Employee can only get own payslips
+        const response = await api.get('/employee/payslips', {
+          params: { month, year }
+        })
+        return response.data
+      }
+      
+      // Employer can get any employee's payslip
+      const response = await api.get(`/employer/payroll/${employeeId}`, {
+        params: { month, year }
       })
       return response.data
     } catch (error) {
@@ -48,16 +67,12 @@ class PayrollService {
   }
 
   /**
-   * Get payroll summary
+   * Get payroll summary (Employer only)
    */
   async getPayrollSummary(month, year) {
     try {
-      const response = await axios.get(PAYROLL_API, {
-        params: {
-          action: 'get_summary',
-          month,
-          year
-        }
+      const response = await api.get('/employer/payroll/summary.php', {
+        params: { month, year }
       })
       return response.data
     } catch (error) {
@@ -67,12 +82,11 @@ class PayrollService {
   }
 
   /**
-   * Generate payroll for a single employee
+   * Generate payroll for a single employee (Employer only)
    */
   async generateEmployeePayroll(employeeId, month, year) {
     try {
-      const response = await axios.post(PAYROLL_API, {
-        action: 'generate_payroll',
+      const response = await api.post('/employer/payroll/generate', {
         employee_id: employeeId,
         month,
         year
@@ -85,12 +99,11 @@ class PayrollService {
   }
 
   /**
-   * Generate payroll for all active employees
+   * Generate payroll for all active employees (Employer only)
    */
   async generateBulkPayroll(month, year) {
     try {
-      const response = await axios.post(PAYROLL_API, {
-        action: 'generate_bulk_payroll',
+      const response = await api.post('/employer/payroll/generate/bulk', {
         month,
         year
       })
@@ -102,14 +115,11 @@ class PayrollService {
   }
 
   /**
-   * Approve payroll
+   * Approve payroll (Employer only)
    */
   async approvePayroll(payrollId) {
     try {
-      const response = await axios.put(PAYROLL_API, {
-        action: 'approve_payroll',
-        payroll_id: payrollId
-      })
+      const response = await api.put(`/employer/payroll/${payrollId}/approve`)
       return response.data
     } catch (error) {
       console.error('Error approving payroll:', error)
@@ -118,13 +128,11 @@ class PayrollService {
   }
 
   /**
-   * Process payment
+   * Process payment (Employer only)
    */
   async processPayment(payrollId, paymentMethod = 'bank_transfer') {
     try {
-      const response = await axios.put(PAYROLL_API, {
-        action: 'process_payment',
-        payroll_id: payrollId,
+      const response = await api.put(`/employer/payroll/${payrollId}/process`, {
         payment_method: paymentMethod
       })
       return response.data
@@ -135,28 +143,68 @@ class PayrollService {
   }
 
   /**
-   * Download payslip
+   * Download payslip (PDF)
    */
-  downloadPayslip(employeeId, month, year) {
-    const url = `${PAYROLL_API}?action=download_payslip&employee_id=${employeeId}&month=${month}&year=${year}`
-    window.open(url, '_blank')
+  async downloadPayslip(employeeId, month, year) {
+    try {
+      const userType = localStorage.getItem('userType')
+      const endpoint = userType === 'employee' 
+        ? '/employee/payslips/download'
+        : `/employer/payroll/${employeeId}/download`
+      
+      const response = await api.get(endpoint, {
+        params: { month, year },
+        responseType: 'blob'
+      })
+      
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `payslip_${month}_${year}.pdf`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      
+      return response.data
+    } catch (error) {
+      console.error('Error downloading payslip:', error)
+      throw error
+    }
   }
 
   /**
-   * Generate report
+   * Generate payroll report (Employer only)
    */
-  generateReport(reportType, month, year) {
-    const url = `${PAYROLL_API}?action=generate_report&report_type=${reportType}&month=${month}&year=${year}`
-    window.open(url, '_blank')
+  async generateReport(reportType, month, year) {
+    try {
+      const response = await api.get('/employer/payroll/report', {
+        params: { report_type: reportType, month, year },
+        responseType: 'blob'
+      })
+      
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `payroll_report_${reportType}_${month}_${year}.pdf`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      
+      return response.data
+    } catch (error) {
+      console.error('Error generating report:', error)
+      throw error
+    }
   }
 
   /**
-   * Send payslip via email
+   * Send payslip via email (Employer only)
    */
   async sendPayslip(employeeId, month, year, email = null) {
     try {
-      const response = await axios.post(PAYROLL_API, {
-        action: 'send_payslip',
+      const response = await api.post('/employer/payroll/send-payslip', {
         employee_id: employeeId,
         month,
         year,
@@ -168,6 +216,22 @@ class PayrollService {
       throw error
     }
   }
+
+  /**
+   * Get statutory deductions summary (Employer only)
+   */
+  async getStatutoryDeductions(month, year) {
+    try {
+      const response = await api.get('/employer/payroll/statutory', {
+        params: { month, year }
+      })
+      return response.data
+    } catch (error) {
+      console.error('Error fetching statutory deductions:', error)
+      throw error
+    }
+  }
 }
 
 export default new PayrollService()
+

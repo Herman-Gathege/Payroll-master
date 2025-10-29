@@ -1,17 +1,22 @@
 nul
 
 # Backend (PHP)
-backend/config/database.php
 backend/vendor/
 backend/composer.lock
 uploads/
 *.log
 
-backend/.env.example
-backend/.env.local
-backend/.env.testing
-backend/.env.production
+# Environment files (IMPORTANT - Never commit these!)
 backend/.env
+backend/.env.*
+!backend/.env.example
+C:/xampp/htdocs/backend/.env
+C:/xampp/htdocs/backend/.env.*
+
+# Config files with credentials
+backend/config/config.php
+C:/xampp/htdocs/backend/config/config.php
+
 backend/storage/
 backend/bootstrap/cache/
 # Frontend (React)
@@ -62,3 +67,7 @@ Thumbs.db
 tmp/
 temp/
 *.tmp
+
+# Deployment packaging
+ready-to-upload/
+payroll-system.zip

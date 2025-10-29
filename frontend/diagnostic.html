@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnostic - HR System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .status {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { color: #4caf50; }
+        .error { color: #f44336; }
+        h1 { color: #333; }
+        h2 { color: #666; margin-top: 0; }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        button {
+            background: #1976d2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1565c0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 HR Management System - Diagnostics</h1>
+    
+    <div class="status">
+        <h2>Frontend Status</h2>
+        <p id="frontend-status">Checking...</p>
+    </div>
+    
+    <div class="status">
+        <h2>Backend API Status</h2>
+        <p id="backend-status">Checking...</p>
+    </div>
+    
+    <div class="status">
+        <h2>React App Status</h2>
+        <p id="react-status">Checking...</p>
+        <div id="react-error"></div>
+    </div>
+    
+    <div class="status">
+        <h2>Browser Info</h2>
+        <pre id="browser-info"></pre>
+    </div>
+    
+    <div class="status">
+        <h2>localStorage Check</h2>
+        <pre id="storage-info"></pre>
+        <button onclick="clearStorage()">Clear All Storage</button>
+    </div>
+    
+    <div class="status">
+        <h2>Quick Actions</h2>
+        <button onclick="testBackend()">Test Backend</button>
+        <button onclick="testLogin()">Test Login</button>
+        <button onclick="window.location.href='/employer/login'">Go to Login</button>
+        <button onclick="window.location.reload()">Reload Page</button>
+    </div>
+    
+    <script>
+        // Check frontend
+        document.getElementById('frontend-status').innerHTML = 
+            '<span class="success">✓ Frontend HTML loaded successfully</span>';
+        
+        // Browser info
+        document.getElementById('browser-info').textContent = 
+            `User Agent: ${navigator.userAgent}\n` +
+            `URL: ${window.location.href}\n` +
+            `Protocol: ${window.location.protocol}\n` +
+            `Host: ${window.location.host}`;
+        
+        // Check localStorage
+        const storage = {
+            token: localStorage.getItem('token'),
+            user: localStorage.getItem('user'),
+            userType: localStorage.getItem('userType')
+        };
+        document.getElementById('storage-info').textContent = JSON.stringify(storage, null, 2);
+        
+        // Test backend
+        async function testBackend() {
+            try {
+                const response = await fetch('http://localhost/backend/api/employer/auth.php');
+                const text = await response.text();
+                document.getElementById('backend-status').innerHTML = 
+                    `<span class="success">✓ Backend accessible</span><br>` +
+                    `Status: ${response.status}<br>` +
+                    `Response: <pre>${text}</pre>`;
+            } catch (error) {
+                document.getElementById('backend-status').innerHTML = 
+                    `<span class="error">✗ Backend error: ${error.message}</span>`;
+            }
+        }
+        
+        // Test login
+        async function testLogin() {
+            try {
+                const response = await fetch('http://localhost/backend/api/employer/auth.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: 'admin', password: 'Admin@2025!' })
+                });
+                const data = await response.json();
+                alert('Login test result:\n' + JSON.stringify(data, null, 2));
+            } catch (error) {
+                alert('Login test failed: ' + error.message);
+            }
+        }
+        
+        // Clear storage
+        function clearStorage() {
+            localStorage.clear();
+            sessionStorage.clear();
+            alert('Storage cleared!');
+            window.location.reload();
+        }
+        
+        // Check React
+        setTimeout(() => {
+            const rootElement = document.getElementById('root');
+            if (rootElement && rootElement.innerHTML) {
+                document.getElementById('react-status').innerHTML = 
+                    '<span class="success">✓ React app rendered</span>';
+            } else {
+                document.getElementById('react-status').innerHTML = 
+                    '<span class="error">✗ React app not rendering</span>';
+                document.getElementById('react-error').innerHTML = 
+                    '<p>Possible causes:</p>' +
+                    '<ul>' +
+                    '<li>JavaScript error in console (check F12)</li>' +
+                    '<li>Missing dependencies (run: npm install)</li>' +
+                    '<li>Import errors in main.jsx or App.jsx</li>' +
+                    '<li>CORS issues with backend</li>' +
+                    '</ul>';
+            }
+        }, 1000);
+        
+        // Auto-test backend on load
+        testBackend();
+    </script>
+</body>
+</html>

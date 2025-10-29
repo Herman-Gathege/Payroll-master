@@ -1,0 +1,12 @@
+# Backend API .htaccess
+
+# Deny access to .env files
+<FilesMatch "^\.env">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Protect config directory
+<FilesMatch "\.(php)$">
+    # Allow only specific config files to be accessed
+</FilesMatch>

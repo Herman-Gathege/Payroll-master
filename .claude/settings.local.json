@@ -5,7 +5,17 @@
       "Bash(npm run dev:*)",
       "Bash(php:*)",
       "Bash(dir \"C:\\Users\\ianos\\work\\PHP\\Payroll-master\\frontend\\src\\services\")",
-      "Bash(dir \"C:\\Users\\ianos\\work\\PHP\\Payroll-master\\frontend\")"
+      "Bash(dir \"C:\\Users\\ianos\\work\\PHP\\Payroll-master\\frontend\")",
+      "Bash(dir:*)",
+      "Bash(curl:*)",
+      "Bash(mysql:*)",
+      "Read(//c/xampp/apache/logs/**)",
+      "Bash(net stop:*)",
+      "Bash(net start:*)",
+      "Read(//c/xampp/htdocs/**)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []

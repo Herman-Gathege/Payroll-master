@@ -27,6 +27,7 @@ import {
   Delete,
   Save
 } from '@mui/icons-material'
+import { primaryButtonStyle } from '../styles/buttonStyles'
 import { toast } from 'react-toastify'
 
 const inputStyles = {
@@ -73,6 +74,21 @@ export default function Settings() {
     { id: 4, name: 'Paternity Leave', days: 14, carryOver: false },
   ])
 
+  const [payrollConfig, setPayrollConfig] = useState(() => {
+    const saved = localStorage.getItem('payrollConfig')
+    return saved ? JSON.parse(saved) : {
+      personalRelief: 2400,
+      nssfRate: 6,
+      nssfEmployerRate: 6,
+      nssfUpperLimit: 36000,
+      shifRate: 2.75,
+      housingLevyRate: 1.5,
+      overtimeRate: 150,
+      workingHoursPerMonth: 160,
+      workingDaysPerMonth: 22
+    }
+  })
+
   const handleSaveCompanyInfo = () => {
     localStorage.setItem('companyInfo', JSON.stringify(companyInfo))
     toast.success('Company information saved!')
@@ -88,6 +104,15 @@ export default function Settings() {
     setOpenDialog(false)
   }
 
+  const handleSavePayrollConfig = () => {
+    localStorage.setItem('payrollConfig', JSON.stringify(payrollConfig))
+    toast.success('Payroll configuration saved successfully!')
+  }
+
+  const handleConfigChange = (field, value) => {
+    setPayrollConfig(prev => ({ ...prev, [field]: value }))
+  }
+
   return (
     <Box>
       <Typography variant="h4" sx={{ fontWeight: 600, mb: 3 }}>System Settings</Typography>
@@ -97,6 +122,7 @@ export default function Settings() {
         <Tab label="Departments" />
         <Tab label="Positions" />
         <Tab label="Leave Types" />
+        <Tab label="Payroll Configuration" />
       </Tabs>
 
       {activeTab === 0 && (
@@ -342,6 +368,123 @@ export default function Settings() {
               </TableBody>
             </Table>
           </TableContainer>
+        </Paper>
+      )}
+
+      {activeTab === 4 && (
+        <Paper sx={{ p: 4, borderRadius: '12px' }}>
+          <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', fontWeight: 600 }}>
+            Tax & Statutory Deductions
+          </Typography>
+          <Box sx={{ borderBottom: '2px solid', borderColor: 'divider', mb: 3 }} />
+
+          <Grid container spacing={3}>
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                fullWidth
+                label="Personal Relief (Monthly)"
+                type="number"
+                value={payrollConfig.personalRelief}
+                onChange={(e) => handleConfigChange('personalRelief', parseFloat(e.target.value))}
+                InputProps={{ startAdornment: 'KES ' }}
+                sx={inputStyles}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                fullWidth
+                label="NSSF Rate (%)"
+                type="number"
+                value={payrollConfig.nssfRate}
+                onChange={(e) => handleConfigChange('nssfRate', parseFloat(e.target.value))}
+                InputProps={{ endAdornment: '%' }}
+                sx={inputStyles}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                fullWidth
+                label="NSSF Upper Limit"
+                type="number"
+                value={payrollConfig.nssfUpperLimit}
+                onChange={(e) => handleConfigChange('nssfUpperLimit', parseFloat(e.target.value))}
+                InputProps={{ startAdornment: 'KES ' }}
+                sx={inputStyles}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                fullWidth
+                label="SHIF Rate (%)"
+                type="number"
+                value={payrollConfig.shifRate}
+                onChange={(e) => handleConfigChange('shifRate', parseFloat(e.target.value))}
+                InputProps={{ endAdornment: '%' }}
+                sx={inputStyles}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                fullWidth
+                label="Housing Levy Rate (%)"
+                type="number"
+                value={payrollConfig.housingLevyRate}
+                onChange={(e) => handleConfigChange('housingLevyRate', parseFloat(e.target.value))}
+                InputProps={{ endAdornment: '%' }}
+                sx={inputStyles}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                fullWidth
+                label="Overtime Rate (%)"
+                type="number"
+                value={payrollConfig.overtimeRate}
+                onChange={(e) => handleConfigChange('overtimeRate', parseFloat(e.target.value))}
+                InputProps={{ endAdornment: '%' }}
+                sx={inputStyles}
+              />
+            </Grid>
+          </Grid>
+
+          <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', fontWeight: 600, mt: 4 }}>
+            Working Hours
+          </Typography>
+          <Box sx={{ borderBottom: '2px solid', borderColor: 'divider', mb: 3 }} />
+
+          <Grid container spacing={3}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Working Hours Per Month"
+                type="number"
+                value={payrollConfig.workingHoursPerMonth}
+                onChange={(e) => handleConfigChange('workingHoursPerMonth', parseInt(e.target.value))}
+                sx={inputStyles}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Working Days Per Month"
+                type="number"
+                value={payrollConfig.workingDaysPerMonth}
+                onChange={(e) => handleConfigChange('workingDaysPerMonth', parseInt(e.target.value))}
+                sx={inputStyles}
+              />
+            </Grid>
+          </Grid>
+
+          <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end' }}>
+            <Button
+              variant="contained"
+              startIcon={<Save />}
+              onClick={handleSavePayrollConfig}
+              sx={primaryButtonStyle}
+            >
+              Save Configuration
+            </Button>
+          </Box>
         </Paper>
       )}
 

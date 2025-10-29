@@ -121,13 +121,15 @@ export default function Employees() {
                   <TableCell align="center">
                     <IconButton
                       size="small"
-                      onClick={() => navigate(`/employees/${employee.id}`)}
+                      onClick={() => navigate(`/employee-portal/${employee.id}`)}
+                      title="View Employee Portal"
                     >
                       <Visibility />
                     </IconButton>
                     <IconButton
                       size="small"
-                      onClick={() => navigate(`/employees/${employee.id}/edit`)}
+                      onClick={() => navigate(`/employees/${employee.id}`)}
+                      title="Edit Employee"
                     >
                       <Edit />
                     </IconButton>

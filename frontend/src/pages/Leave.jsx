@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery } from 'react-query'
+import { useQuery, useMutation, useQueryClient } from 'react-query'
 import {
   Box,
   Typography,
@@ -30,6 +30,7 @@ import {
 } from '@mui/icons-material'
 import { toast } from 'react-toastify'
 import { employeeService } from '../services/employeeService'
+import leaveService from '../services/leaveService'
 import { primaryButtonStyle, inputFieldStyle } from '../styles/buttonStyles'
 
 const leaveTypes = [
@@ -41,11 +42,8 @@ const leaveTypes = [
 ]
 
 export default function Leave() {
+  const queryClient = useQueryClient()
   const [openDialog, setOpenDialog] = useState(false)
-  const [leaveApplications, setLeaveApplications] = useState(() => {
-    const saved = localStorage.getItem('leaveApplications')
-    return saved ? JSON.parse(saved) : []
-  })
   const [formData, setFormData] = useState({
     employee_id: '',
     leave_type: 'annual',
@@ -58,6 +56,66 @@ export default function Leave() {
   const { data: employeesData } = useQuery('employees', employeeService.getAllEmployees)
   const employees = employeesData?.records || []
 
+  // Fetch all leave requests from database
+  const { data: leaveData, isLoading } = useQuery(
+    'leaveRequests',
+    leaveService.getAllLeaveRequests,
+    {
+      onError: () => toast.error('Failed to load leave requests')
+    }
+  )
+
+  const leaveApplications = leaveData?.records || []
+
+  // Mutations
+  const createLeaveMutation = useMutation(
+    (leaveData) => leaveService.createLeaveRequest(leaveData),
+    {
+      onSuccess: () => {
+        toast.success('Leave application submitted successfully!')
+        queryClient.invalidateQueries('leaveRequests')
+        setOpenDialog(false)
+        setFormData({
+          employee_id: '',
+          leave_type: 'annual',
+          start_date: '',
+          end_date: '',
+          reason: '',
+          status: 'pending'
+        })
+      },
+      onError: (error) => {
+        toast.error(error.response?.data?.message || 'Failed to submit leave application')
+      }
+    }
+  )
+
+  const approveLeaveMutation = useMutation(
+    (id) => leaveService.approveLeaveRequest(id),
+    {
+      onSuccess: () => {
+        toast.success('Leave request approved!')
+        queryClient.invalidateQueries('leaveRequests')
+      },
+      onError: () => {
+        toast.error('Failed to approve leave request')
+      }
+    }
+  )
+
+  const rejectLeaveMutation = useMutation(
+    (id) => leaveService.rejectLeaveRequest(id),
+    {
+      onSuccess: () => {
+        toast.success('Leave request rejected!')
+        queryClient.invalidateQueries('leaveRequests')
+      },
+      onError: () => {
+        toast.error('Failed to reject leave request')
+      }
+    }
+  )
+
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
@@ -69,53 +127,33 @@ export default function Leave() {
       return
     }
 
-    const employee = employees.find(e => e.id === parseInt(formData.employee_id))
     const startDate = new Date(formData.start_date)
     const endDate = new Date(formData.end_date)
     const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1
 
-    const newApplication = {
-      id: leaveApplications.length + 1,
-      ...formData,
-      employee_name: employee?.full_name || 'Unknown',
-      employee_number: employee?.employee_number || 'N/A',
+    const leaveData = {
+      employee_id: parseInt(formData.employee_id),
+      leave_type: formData.leave_type,
+      start_date: formData.start_date,
+      end_date: formData.end_date,
       days,
-      applied_date: new Date().toISOString(),
+      reason: formData.reason,
       status: 'pending'
     }
 
-    const updated = [...leaveApplications, newApplication]
-    setLeaveApplications(updated)
-    localStorage.setItem('leaveApplications', JSON.stringify(updated))
-
-    toast.success('Leave application submitted successfully!')
-    setOpenDialog(false)
-    setFormData({
-      employee_id: '',
-      leave_type: 'annual',
-      start_date: '',
-      end_date: '',
-      reason: '',
-      status: 'pending'
-    })
+    createLeaveMutation.mutate(leaveData)
   }
 
   const handleApprove = (id) => {
-    const updated = leaveApplications.map(app =>
-      app.id === id ? { ...app, status: 'approved' } : app
-    )
-    setLeaveApplications(updated)
-    localStorage.setItem('leaveApplications', JSON.stringify(updated))
-    toast.success('Leave application approved!')
+    if (window.confirm('Are you sure you want to approve this leave request?')) {
+      approveLeaveMutation.mutate(id)
+    }
   }
 
   const handleReject = (id) => {
-    const updated = leaveApplications.map(app =>
-      app.id === id ? { ...app, status: 'rejected' } : app
-    )
-    setLeaveApplications(updated)
-    localStorage.setItem('leaveApplications', JSON.stringify(updated))
-    toast.success('Leave application rejected!')
+    if (window.confirm('Are you sure you want to reject this leave request?')) {
+      rejectLeaveMutation.mutate(id)
+    }
   }
 
   const getStatusColor = (status) => {

@@ -1,0 +1,7 @@
+{
+    "name": "payroll/backend",
+    "type": "project",
+    "require": {
+        "phpmailer/phpmailer": "^7.0"
+    }
+}

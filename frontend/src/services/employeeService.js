@@ -1,121 +1,139 @@
 import api from './api'
 
-// Mock data storage
-let mockEmployees = JSON.parse(localStorage.getItem('employees') || '[]')
-
-const saveMockData = () => {
-  localStorage.setItem('employees', JSON.stringify(mockEmployees))
-}
-
-// Use mock service for demonstration
-const useMock = true
-
+/**
+ * Employee Service
+ * Handles employee-related API calls with dual authentication support
+ */
 export const employeeService = {
+  /**
+   * Get all employees (Employer only)
+   */
   getAllEmployees: async () => {
-    if (useMock) {
-      // Return mock data
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve({
-            records: mockEmployees,
-            total: mockEmployees.length
-          })
-        }, 300)
-      })
+    try {
+      const response = await api.get('/employer/employees.php')
+      return response.data
+    } catch (error) {
+      console.error('Error fetching employees:', error)
+      throw error
     }
-    const response = await api.get('/employees')
-    return response.data
   },
 
+  /**
+   * Get employee by ID (Employer) or own profile (Employee)
+   */
   getEmployee: async (id) => {
-    if (useMock) {
-      return new Promise((resolve, reject) => {
-        setTimeout(() => {
-          const employee = mockEmployees.find(emp => emp.id === parseInt(id))
-          if (employee) {
-            resolve({ employee })
-          } else {
-            reject(new Error('Employee not found'))
-          }
-        }, 300)
-      })
+    try {
+      const userType = localStorage.getItem('userType')
+      
+      // If employee, always get own profile
+      if (userType === 'employee') {
+        const response = await api.get('/employee/profile.php')
+        return response.data
+      }
+      
+      // If employer, get specific employee
+      const response = await api.get(`/employer/employees/${id}`)
+      return response.data
+    } catch (error) {
+      console.error('Error fetching employee:', error)
+      throw error
     }
-    const response = await api.get(`/employees?id=${id}`)
-    return response.data
   },
 
+  /**
+   * Get current user's profile (Employee)
+   */
+  getMyProfile: async () => {
+    try {
+      console.log('[employeeService] Fetching employee profile from /employee/profile.php')
+      const response = await api.get('/employee/profile.php')
+      console.log('[employeeService] Profile response:', response.data)
+      return response.data
+    } catch (error) {
+      console.error('[employeeService] Error fetching profile:', error)
+      throw error
+    }
+  },
+
+  /**
+   * Create new employee (Employer only)
+   */
   createEmployee: async (employeeData) => {
-    if (useMock) {
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          const newEmployee = {
-            id: mockEmployees.length > 0 ? Math.max(...mockEmployees.map(e => e.id)) + 1 : 1,
-            ...employeeData,
-            full_name: `${employeeData.first_name} ${employeeData.middle_name || ''} ${employeeData.last_name}`.trim(),
-            department_name: 'N/A',
-            position_title: 'N/A',
-            created_at: new Date().toISOString()
-          }
-          mockEmployees.push(newEmployee)
-          saveMockData()
-          resolve({ message: 'Employee created successfully', employee: newEmployee })
-        }, 300)
-      })
+    try {
+      const response = await api.post('/employer/employees', employeeData)
+      return response.data
+    } catch (error) {
+      console.error('Error creating employee:', error)
+      throw error
     }
-    const response = await api.post('/employees', employeeData)
-    return response.data
   },
 
+  /**
+   * Update employee (Employer updates any, Employee updates own)
+   */
   updateEmployee: async (employeeData) => {
-    if (useMock) {
-      return new Promise((resolve, reject) => {
-        setTimeout(() => {
-          const index = mockEmployees.findIndex(emp => emp.id === employeeData.id)
-          if (index !== -1) {
-            mockEmployees[index] = {
-              ...mockEmployees[index],
-              ...employeeData,
-              full_name: `${employeeData.first_name} ${employeeData.middle_name || ''} ${employeeData.last_name}`.trim(),
-            }
-            saveMockData()
-            resolve({ message: 'Employee updated successfully', employee: mockEmployees[index] })
-          } else {
-            reject(new Error('Employee not found'))
-          }
-        }, 300)
-      })
+    try {
+      const userType = localStorage.getItem('userType')
+      
+      if (userType === 'employee') {
+        // Employee can only update own profile (limited fields)
+        const response = await api.put('/employee/profile.php', {
+          phone: employeeData.phone,
+          personal_email: employeeData.personal_email,
+          emergency_contact_name: employeeData.emergency_contact_name,
+          emergency_contact_phone: employeeData.emergency_contact_phone,
+        })
+        return response.data
+      }
+      
+      // Employer can update full employee record
+      const response = await api.put(`/employer/employees/${employeeData.id}`, employeeData)
+      return response.data
+    } catch (error) {
+      console.error('Error updating employee:', error)
+      throw error
     }
-    const response = await api.put('/employees', employeeData)
-    return response.data
   },
 
+  /**
+   * Delete/Deactivate employee (Employer only)
+   */
   deleteEmployee: async (id) => {
-    if (useMock) {
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          mockEmployees = mockEmployees.filter(emp => emp.id !== parseInt(id))
-          saveMockData()
-          resolve({ message: 'Employee deleted successfully' })
-        }, 300)
-      })
+    try {
+      const response = await api.delete(`/employer/employees/${id}`)
+      return response.data
+    } catch (error) {
+      console.error('Error deleting employee:', error)
+      throw error
     }
-    const response = await api.delete(`/employees?id=${id}`)
-    return response.data
   },
 
-  searchEmployees: async (keywords) => {
-    if (useMock) {
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          const filtered = mockEmployees.filter(emp =>
-            emp.full_name?.toLowerCase().includes(keywords.toLowerCase()) ||
-            emp.employee_number?.toLowerCase().includes(keywords.toLowerCase())
-          )
-          resolve({ records: filtered, total: filtered.length })
-        }, 300)
+  /**
+   * Search employees (Employer only)
+   */
+  searchEmployees: async (searchTerm) => {
+    try {
+      const response = await api.get('/employer/employees/search', {
+        params: { q: searchTerm }
       })
+      return response.data
+    } catch (error) {
+      console.error('Error searching employees:', error)
+      throw error
     }
-    const response = await api.get(`/employees?search=${keywords}`)
-    return response.data
+  },
+
+  /**
+   * Get employees by department (Employer only)
+   */
+  getEmployeesByDepartment: async (departmentId) => {
+    try {
+      const response = await api.get(`/employer/departments/${departmentId}/employees`)
+      return response.data
+    } catch (error) {
+      console.error('Error fetching employees by department:', error)
+      throw error
+    }
   }
 }
+

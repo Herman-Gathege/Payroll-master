@@ -70,15 +70,93 @@ export default function AddEmployee() {
   const validateForm = () => {
     const newErrors = {}
 
-    if (!formData.first_name) newErrors.first_name = 'First name is required'
-    if (!formData.last_name) newErrors.last_name = 'Last name is required'
-    if (!formData.employee_number) newErrors.employee_number = 'Employee number is required'
-    if (!formData.national_id) newErrors.national_id = 'National ID is required'
-    if (!formData.phone_number) newErrors.phone_number = 'Phone number is required'
-    if (!formData.date_of_birth) newErrors.date_of_birth = 'Date of birth is required'
-    if (!formData.gender) newErrors.gender = 'Gender is required'
-    if (!formData.hire_date) newErrors.hire_date = 'Hire date is required'
-    if (!formData.employment_type) newErrors.employment_type = 'Employment type is required'
+    // Required field validations
+    if (!formData.first_name) {
+      newErrors.first_name = 'First name is required'
+    } else if (formData.first_name.length < 2) {
+      newErrors.first_name = 'First name must be at least 2 characters'
+    } else if (!/^[a-zA-Z\s]+$/.test(formData.first_name)) {
+      newErrors.first_name = 'First name should only contain letters'
+    }
+
+    if (!formData.last_name) {
+      newErrors.last_name = 'Last name is required'
+    } else if (formData.last_name.length < 2) {
+      newErrors.last_name = 'Last name must be at least 2 characters'
+    } else if (!/^[a-zA-Z\s]+$/.test(formData.last_name)) {
+      newErrors.last_name = 'Last name should only contain letters'
+    }
+
+    if (!formData.employee_number) {
+      newErrors.employee_number = 'Employee number is required'
+    } else if (formData.employee_number.length < 3) {
+      newErrors.employee_number = 'Employee number must be at least 3 characters'
+    }
+
+    if (!formData.national_id) {
+      newErrors.national_id = 'National ID is required'
+    } else if (formData.national_id.length < 6) {
+      newErrors.national_id = 'National ID must be at least 6 characters'
+    }
+
+    if (!formData.phone_number) {
+      newErrors.phone_number = 'Phone number is required'
+    } else if (!/^\+?[\d\s-()]+$/.test(formData.phone_number)) {
+      newErrors.phone_number = 'Invalid phone number format'
+    } else if (formData.phone_number.replace(/\D/g, '').length < 10) {
+      newErrors.phone_number = 'Phone number must be at least 10 digits'
+    }
+
+    // Email validations
+    if (formData.personal_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.personal_email)) {
+      newErrors.personal_email = 'Invalid email format'
+    }
+
+    if (formData.work_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.work_email)) {
+      newErrors.work_email = 'Invalid email format'
+    }
+
+    // Date validations
+    if (!formData.date_of_birth) {
+      newErrors.date_of_birth = 'Date of birth is required'
+    } else {
+      const dob = new Date(formData.date_of_birth)
+      const today = new Date()
+      const age = today.getFullYear() - dob.getFullYear()
+      if (age < 18) {
+        newErrors.date_of_birth = 'Employee must be at least 18 years old'
+      } else if (age > 100) {
+        newErrors.date_of_birth = 'Invalid date of birth'
+      }
+    }
+
+    if (!formData.hire_date) {
+      newErrors.hire_date = 'Hire date is required'
+    } else {
+      const hireDate = new Date(formData.hire_date)
+      const today = new Date()
+      if (hireDate > today) {
+        newErrors.hire_date = 'Hire date cannot be in the future'
+      }
+    }
+
+    if (!formData.gender) {
+      newErrors.gender = 'Gender is required'
+    }
+
+    if (!formData.employment_type) {
+      newErrors.employment_type = 'Employment type is required'
+    }
+
+    // Salary validation
+    if (formData.basic_salary && parseFloat(formData.basic_salary) < 0) {
+      newErrors.basic_salary = 'Salary must be a positive number'
+    }
+
+    // KRA PIN validation (Kenya format)
+    if (formData.kra_pin && !/^[A-Z]\d{9}[A-Z]$/.test(formData.kra_pin)) {
+      newErrors.kra_pin = 'Invalid KRA PIN format (e.g., A000000000B)'
+    }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -182,6 +260,9 @@ export default function AddEmployee() {
                 name="kra_pin"
                 value={formData.kra_pin}
                 onChange={handleChange}
+                error={!!errors.kra_pin}
+                helperText={errors.kra_pin}
+                placeholder="A000000000B"
               />
             </Grid>
 
@@ -240,6 +321,8 @@ export default function AddEmployee() {
                 type="email"
                 value={formData.personal_email}
                 onChange={handleChange}
+                error={!!errors.personal_email}
+                helperText={errors.personal_email}
               />
             </Grid>
 
@@ -251,6 +334,8 @@ export default function AddEmployee() {
                 type="email"
                 value={formData.work_email}
                 onChange={handleChange}
+                error={!!errors.work_email}
+                helperText={errors.work_email}
               />
             </Grid>
 
@@ -317,6 +402,8 @@ export default function AddEmployee() {
                 value={formData.basic_salary}
                 onChange={handleChange}
                 placeholder="50000"
+                error={!!errors.basic_salary}
+                helperText={errors.basic_salary}
               />
             </Grid>
 

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Employee Login</title>
+</head>
+<body>
+    <h1>Test Employee Login</h1>
+    <button onclick="testLogin()">Test Login</button>
+    <button onclick="testProfile()">Test Profile</button>
+    <pre id="result"></pre>
+
+    <script>
+        let token = '';
+
+        async function testLogin() {
+            const result = document.getElementById('result');
+            result.textContent = 'Testing login...';
+
+            try {
+                const response = await fetch('http://localhost/backend/api/employee/auth.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: 'john.doe',
+                        password: 'Employee@2025!'
+                    })
+                });
+
+                const data = await response.json();
+                result.textContent = JSON.stringify(data, null, 2);
+
+                if (data.success && data.token) {
+                    token = data.token;
+                    result.textContent += '\n\n✅ Login successful! Token saved.';
+                }
+            } catch (error) {
+                result.textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function testProfile() {
+            const result = document.getElementById('result');
+
+            if (!token) {
+                result.textContent = 'Please login first!';
+                return;
+            }
+
+            result.textContent = 'Testing profile...';
+
+            try {
+                const response = await fetch('http://localhost/backend/api/employee/profile.php', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    }
+                });
+
+                const data = await response.json();
+                result.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                result.textContent = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
