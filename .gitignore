@@ -11,7 +11,7 @@ backend/.env
 backend/.env.*
 !backend/.env.example
 C:/xampp/htdocs/backend/.env
-C:/xampp/htdocs/backend/.env.*
+C:/xampp/ocs/backend/.env.*
 
 # Config files with credentials
 backend/config/config.php
@@ -71,3 +71,10 @@ temp/
 # Deployment packaging
 ready-to-upload/
 payroll-system.zip
+
+# Documentation files
+*.md
+!README.md
+
+# Test files
+test_*
