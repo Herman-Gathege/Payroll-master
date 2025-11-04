@@ -19,20 +19,52 @@ import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import EmployeePortal from './pages/EmployeePortal'
 
+// 🧩 Import your new onboarding pages
+import AgentRegister from './pages/AgentOnboarding/AgentRegister'
+import AgentProfile from './pages/AgentOnboarding/AgentProfile'
+import AgentDocuments from './pages/AgentOnboarding/AgentDocuments'
+import AgentReview from './pages/AgentOnboarding/AgentReview'
+
 function PrivateRoute({ children }) {
-  // Bypass authentication for demonstration
-  return children
-  // const { user } = useAuth()
-  // return user ? children : <Navigate to="/login" />
+  const { user } = useAuth()
+  return user ? children : <Navigate to="/login" replace />
 }
 
 function App() {
-  const { user } = useAuth()
-
   return (
     <>
       <Routes>
+        {/* Public routes */}
         <Route path="/login" element={<Login />} />
+
+        {/* 🧩 Agent Onboarding Flow (Public entry, then private steps) */}
+        <Route path="/agent/onboarding/register" element={<AgentRegister />} />
+        <Route
+          path="/agent/onboarding/profile"
+          element={
+            <PrivateRoute>
+              <AgentProfile />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/agent/onboarding/documents"
+          element={
+            <PrivateRoute>
+              <AgentDocuments />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/agent/onboarding/review"
+          element={
+            <PrivateRoute>
+              <AgentReview />
+            </PrivateRoute>
+          }
+        />
+
+        {/* 🧭 Main HR system (Protected) */}
         <Route
           path="/"
           element={
@@ -56,6 +88,7 @@ function App() {
           <Route path="employee-portal" element={<EmployeePortal />} />
         </Route>
       </Routes>
+
       <ToastContainer position="top-right" autoClose={3000} />
     </>
   )

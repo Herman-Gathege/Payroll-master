@@ -1,252 +1,49 @@
-// src/components/Layout.jsx
-import { useState } from 'react'
-import { Outlet, useNavigate } from 'react-router-dom'
-import {
-  Box,
-  Drawer,
-  AppBar,
-  Toolbar,
-  List,
-  Typography,
-  Divider,
-  IconButton,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Avatar,
-  Menu,
-  MenuItem
-} from '@mui/material'
-import {
-  Menu as MenuIcon,
-  Dashboard,
-  People,
-  Work,
-  EventAvailable,
-  AccessTime,
-  Payments,
-  Assessment,
-  School,
-  Settings as SettingsIcon,
-  Logout,
-  AccountCircle
-} from '@mui/icons-material'
-import { useAuth } from '../contexts/AuthContext'
+//frontend/src/contexts/AuthContext.jsx
+import { createContext, useContext, useState, useEffect } from 'react'
+import { authService } from '../services/authService'
 
-const drawerWidth = 260
+const AuthContext = createContext({})
 
-const payrollMenuItems = [
-  { text: 'Dashboard', icon: <Dashboard />, path: '/' },
-  { text: 'Payroll', icon: <Payments />, path: '/payroll' },
-  { text: 'Reports', icon: <Assessment />, path: '/reports' },
-  { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
-]
+export const useAuth = () => useContext(AuthContext)
 
-const hrMenuItems = [
-  { text: 'Employees', icon: <People />, path: '/employees' },
-  { text: 'Recruitment', icon: <Work />, path: '/recruitment' },
-  { text: 'Leave Management', icon: <EventAvailable />, path: '/leave' },
-  { text: 'Attendance', icon: <AccessTime />, path: '/attendance' },
-  { text: 'Performance', icon: <Assessment />, path: '/performance' },
-  { text: 'Training', icon: <School />, path: '/training' },
-]
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
 
-export default function Layout() {
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [anchorEl, setAnchorEl] = useState(null)
-  const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    const userData = localStorage.getItem('user')
 
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen)
+    if (token && userData) {
+      setUser(JSON.parse(userData))
+    }
+    setLoading(false)
+  }, [])
+
+  const login = async (username, password) => {
+    try {
+      const response = await authService.login(username, password)
+      setUser(response.user)
+      localStorage.setItem('token', response.token)
+      localStorage.setItem('user', JSON.stringify(response.user))
+      return response
+    } catch (error) {
+      throw error
+    }
   }
 
-  const handleMenuOpen = (event) => {
-    setAnchorEl(event.currentTarget)
+  const logout = () => {
+    setUser(null)
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
   }
 
-  const handleMenuClose = () => {
-    setAnchorEl(null)
+  const value = {
+    user,
+    login,
+    logout,
+    loading
   }
 
-  const handleLogout = () => {
-    logout()
-    navigate('/login')
-  }
-
-  const drawer = (
-    <div>
-      <Toolbar sx={{ background: 'linear-gradient(135deg, #1a365d, #2d3748)', color: 'white' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Box
-            sx={{
-              width: 60,
-              height: 60,
-              borderRadius: '50%',
-              background: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '10px',
-              boxShadow: '0 2px 10px rgba(0,0,0,0.2)'
-            }}
-          >
-            <img
-              src="/src/assets/lixnet2.png"
-              alt="Lixnet Logo"
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'contain'
-              }}
-            />
-          </Box>
-          <Typography variant="h5" noWrap component="div" sx={{ fontWeight: 700, letterSpacing: 1 }}>
-            Evolve
-          </Typography>
-        </Box>
-      </Toolbar>
-      <Divider />
-
-      {/* HR Section */}
-      <Box sx={{ px: 2, pt: 2, pb: 1 }}>
-        <Typography variant="overline" sx={{ color: '#718096', fontWeight: 600, fontSize: 11 }}>
-          HUMAN RESOURCE
-        </Typography>
-      </Box>
-      <List sx={{ pt: 0 }}>
-        {hrMenuItems.map((item) => (
-          <ListItem key={item.text} disablePadding>
-            <ListItemButton
-              onClick={() => navigate(item.path)}
-              sx={{
-                borderLeft: '4px solid transparent',
-                '&:hover': {
-                  backgroundColor: 'rgba(26, 54, 93, 0.05)',
-                  borderLeftColor: '#d4af37',
-                  color: '#1a365d'
-                }
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
-
-      <Divider sx={{ my: 1 }} />
-
-      {/* Payroll Section */}
-      <Box sx={{ px: 2, pt: 1, pb: 1 }}>
-        <Typography variant="overline" sx={{ color: '#718096', fontWeight: 600, fontSize: 11 }}>
-          PAYROLL
-        </Typography>
-      </Box>
-      <List sx={{ pt: 0 }}>
-        {payrollMenuItems.map((item) => (
-          <ListItem key={item.text} disablePadding>
-            <ListItemButton
-              onClick={() => navigate(item.path)}
-              sx={{
-                borderLeft: '4px solid transparent',
-                '&:hover': {
-                  backgroundColor: 'rgba(26, 54, 93, 0.05)',
-                  borderLeftColor: '#d4af37',
-                  color: '#1a365d'
-                }
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
-    </div>
-  )
-
-  return (
-    <Box sx={{ display: 'flex' }}>
-      <AppBar
-        position="fixed"
-        sx={{
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          ml: { sm: `${drawerWidth}px` },
-          background: '#FFFFFF',
-          color: '#2d3748',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-        }}
-      >
-        <Toolbar>
-          <IconButton
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' }, color: '#2d3748' }}
-          >
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 600, color: '#2d3748' }}>
-            Payroll Dashboard
-          </Typography>
-          <IconButton onClick={handleMenuOpen}>
-            <Avatar sx={{ width: 32, height: 32, background: '#1a365d' }}>
-              {user?.username?.charAt(0).toUpperCase()}
-            </Avatar>
-          </IconButton>
-          <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
-            onClose={handleMenuClose}
-          >
-            <MenuItem onClick={() => { handleMenuClose(); navigate('/employee-portal') }}>
-              <AccountCircle sx={{ mr: 1 }} /> My Profile
-            </MenuItem>
-            <MenuItem onClick={handleLogout}>
-              <Logout sx={{ mr: 1 }} /> Logout
-            </MenuItem>
-          </Menu>
-        </Toolbar>
-      </AppBar>
-      <Box
-        component="nav"
-        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-      >
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{ keepMounted: true }}
-          sx={{
-            display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-          }}
-        >
-          {drawer}
-        </Drawer>
-        <Drawer
-          variant="permanent"
-          sx={{
-            display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-          }}
-          open
-        >
-          {drawer}
-        </Drawer>
-      </Box>
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          p: 3,
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-        }}
-      >
-        <Toolbar />
-        <Outlet />
-      </Box>
-    </Box>
-  )
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
