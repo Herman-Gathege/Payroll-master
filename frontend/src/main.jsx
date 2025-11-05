@@ -8,6 +8,8 @@ import CssBaseline from '@mui/material/CssBaseline'
 import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
 import './index.css'
+import './theme.css';
+
 
 const queryClient = new QueryClient({
   defaultOptions: {

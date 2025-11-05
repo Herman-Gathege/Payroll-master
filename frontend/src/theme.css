@@ -1,0 +1,245 @@
+/* ==============================
+   🌐 Evolve Global Theme
+   ============================== */
+
+:root {
+  /* 🎨 Core Colors */
+  --primary: #1a365d;
+  --secondary: #d4af37;
+  --accent: #2d3748;
+  --light-blue: #3182ce;
+  --light: #ffffff;
+  --gray: #718096;
+  --light-gray: #f7fafc;
+
+  /* ⚙️ Core Metrics */
+  --radius: 8px;
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --transition: all 0.3s ease;
+
+  /* ✍️ Typography */
+  --font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+}
+
+/* ====== Base Reset ====== */
+body {
+  font-family: var(--font-family);
+  background-color: var(--light-gray);
+  color: var(--accent);
+  margin: 0;
+  padding: 0;
+}
+
+/* ====== Shared Components ====== */
+.card {
+  background: var(--light);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transition: var(--transition);
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: var(--light);
+  border: none;
+  border-radius: var(--radius);
+  padding: 0.6rem 1.4rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-primary:hover {
+  background-color: var(--light-blue);
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  border-radius: var(--radius);
+  padding: 0.6rem 1.4rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-outline:hover {
+  background: var(--light-blue);
+  color: var(--light);
+}
+
+/* ====== Navbar ====== */
+.navbar {
+  background: var(--light);
+  box-shadow: var(--shadow);
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.navbar a {
+  color: var(--gray);
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+.navbar a:hover {
+  color: var(--primary);
+}
+
+/* ====== Stepper ====== */
+.step-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid var(--gray);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.step-active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--light);
+}
+
+.step-label {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--gray);
+}
+
+.step-label-active {
+  color: var(--primary);
+  font-weight: 500;
+}
+
+/* ====== Footer ====== */
+footer {
+  border-top: 1px solid var(--light-gray);
+  color: var(--gray);
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 1rem 0;
+}
+
+/* ===== Enhanced Form and Layout Styling ===== */
+
+.form-card {
+  background: var(--light);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 2.5rem;
+  max-width: 480px;
+  margin: 2rem auto;
+}
+
+.form-card h2 {
+  color: var(--primary);
+  text-align: center;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="password"],
+select {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--gray);
+  border-radius: var(--radius);
+  transition: var(--transition);
+  font-size: 1rem;
+}
+
+input:focus,
+select:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.15);
+}
+
+button[type="submit"],
+.btn-primary {
+  width: 100%;
+  font-size: 1rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--radius);
+  transition: var(--transition);
+  background: var(--primary);
+  color: var(--light);
+  border: none;
+  cursor: pointer;
+}
+
+button[type="submit"]:hover,
+.btn-primary:hover {
+  background: var(--light-blue);
+}
+
+.form-message {
+  text-align: center;
+  margin-top: 1rem;
+  color: var(--gray);
+}
+
+/* ===== Modern Landing Page ===== */
+
+.hero {
+  background: linear-gradient(
+      to right,
+      rgba(26, 54, 93, 0.9),
+      rgba(45, 55, 72, 0.85)
+    ),
+    url('/hero-bg.jpg') center/cover no-repeat;
+  color: var(--light);
+  padding: 6rem 1rem;
+  text-align: center;
+}
+
+.hero h1 {
+  font-size: 2.8rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.hero p {
+  max-width: 680px;
+  margin: 0 auto 2rem;
+  color: #e2e8f0;
+}
+
+.hero-buttons .btn-primary {
+  background: var(--secondary);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.hero-buttons .btn-primary:hover {
+  background: #e2c865;
+}
+
+.section {
+  padding: 4rem 1rem;
+  background: var(--light);
+  text-align: center;
+}
+
+.section h2 {
+  color: var(--primary);
+  font-size: 1.75rem;
+  margin-bottom: 1rem;
+}
+
+.section p {
+  color: var(--gray);
+  max-width: 700px;
+  margin: 0 auto;
+}

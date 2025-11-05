@@ -1,4 +1,7 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 require_once __DIR__ . '/../models/Agent.php';
 require_once __DIR__ . '/../models/AgentProfile.php';
 require_once __DIR__ . '/../models/AgentDocument.php';
@@ -11,21 +14,38 @@ class AgentController {
     }
 
     /**
-     * 1️⃣ Register new agent (Stack Auth user completes onboarding step 1)
+     * 1️⃣ Register new agent
      */
     public function registerAgent($data) {
-        $agent = new Agent($this->conn);
-        $agent->stack_user_id = $data['stack_user_id'] ?? null;
-        $agent->full_name = $data['full_name'] ?? '';
-        $agent->email = $data['email'] ?? '';
-        $agent->phone = $data['phone'] ?? '';
-        $agent->status = 'pending';
-        $agent->onboarding_stage = 'registration';
+        try {
+            $agent = new Agent($this->conn);
+            $agent->stack_user_id = $data['stack_user_id'] ?? null;
+            $agent->full_name = $data['full_name'] ?? '';
+            $agent->email = $data['email'] ?? '';
+            $agent->phone = $data['phone'] ?? '';
+            $agent->status = 'pending';
+            $agent->onboarding_stage = 'registered';
 
-        if ($agent->create()) {
-            return ['success' => true, 'message' => 'Agent registered successfully'];
+            $agent_id = $agent->create();
+
+            if ($agent_id) {
+                return [
+                    'success' => true,
+                    'message' => 'Agent registered successfully',
+                    'agent_id' => $agent_id
+                ];
+            }
+
+            return ['success' => false, 'message' => 'Failed to register agent'];
+        } catch (PDOException $e) {
+            if ($e->getCode() == 23000) {
+                return [
+                    'success' => false,
+                    'message' => 'This email is already registered. Please use a different email.'
+                ];
+            }
+            return ['success' => false, 'message' => 'Database Error: ' . $e->getMessage()];
         }
-        return ['success' => false, 'message' => 'Failed to register agent'];
     }
 
     /**
@@ -42,31 +62,72 @@ class AgentController {
         $profile->referred_by = $data['referred_by'] ?? '';
 
         if ($profile->upsert()) {
-            // Update agent onboarding stage
             $agent = new Agent($this->conn);
             $agent->updateStage($agent_id, 'profile_completed');
-            return ['success' => true, 'message' => 'Profile saved successfully'];
+
+            return [
+                'success' => true,
+                'message' => 'Profile saved successfully'
+            ];
         }
+
         return ['success' => false, 'message' => 'Failed to save profile'];
     }
 
     /**
-     * 3️⃣ Upload agent document (e.g. ID, KRA, etc.)
+     * 3️⃣ Upload agent document
      */
-    public function uploadDocument($agent_id, $doc_type, $file_path) {
+    public function uploadDocument($agent_id, $doc_type, $file) {
+        if (!isset($file) || $file['error'] !== UPLOAD_ERR_OK) {
+            return ['success' => false, 'message' => 'Invalid or missing file'];
+        }
+
+        // Ensure upload directory exists (publicly accessible)
+        $uploadDir = __DIR__ . '/../uploads/agents/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+        }
+
+        // Sanitize filename and store file
+        $safeName = preg_replace('/[^A-Za-z0-9_\.-]/', '_', basename($file['name']));
+        $fileName = uniqid() . '_' . $safeName;
+        $filePath = $uploadDir . $fileName;
+
+        if (!move_uploaded_file($file['tmp_name'], $filePath)) {
+            return ['success' => false, 'message' => 'Failed to save uploaded file'];
+        }
+
+        // Save relative path for frontend use
+        $relativePath = '/uploads/agents/' . $fileName;
+
+        // Save to database
+        require_once __DIR__ . '/../models/AgentDocument.php';
         $doc = new AgentDocument($this->conn);
         $doc->agent_id = $agent_id;
-        $doc->doc_type = $doc_type;
-        $doc->file_path = $file_path;
+        $doc->doc_type = strtolower($doc_type);
+        $doc->file_path = $relativePath;
         $doc->status = 'pending';
 
         if ($doc->upload()) {
             $agent = new Agent($this->conn);
-            $agent->updateStage($agent_id, 'documents_uploaded');
-            return ['success' => true, 'message' => 'Document uploaded successfully'];
+
+            // ✅ Update onboarding stage to completed
+            $agent->updateStage($agent_id, 'completed');
+
+            // (Optional) Also automatically mark status as 'pending'
+            $agent->updateStatus($agent_id, 'pending');
+
+            return [
+                'success' => true,
+                'message' => 'Document uploaded successfully! Your onboarding is now complete.'
+            ];
         }
-        return ['success' => false, 'message' => 'Failed to upload document'];
+
+
+        return ['success' => false, 'message' => 'Database record failed to save'];
     }
+
+
 
     /**
      * 4️⃣ Fetch pending verification agents
@@ -83,10 +144,19 @@ class AgentController {
      */
     public function verifyAgent($agent_id, $status) {
         $agent = new Agent($this->conn);
+
         if ($agent->updateStatus($agent_id, $status)) {
-            $agent->updateStage($agent_id, $status === 'verified' ? 'completed' : 'rejected');
-            return ['success' => true, 'message' => "Agent status updated to $status"];
+            $agent->updateStage(
+                $agent_id,
+                $status === 'verified' ? 'completed' : 'rejected'
+            );
+
+            return [
+                'success' => true,
+                'message' => "Agent status updated to $status"
+            ];
         }
+
         return ['success' => false, 'message' => 'Failed to update agent status'];
     }
 }

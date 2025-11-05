@@ -1,5 +1,5 @@
 // frontend/src/services/agentService.js
-const API_BASE = "/api/agents.php";
+const API_BASE = "http://localhost:8000/api/agent.php";
 
 // Helper: JSON POST
 async function postJSON(action, data) {

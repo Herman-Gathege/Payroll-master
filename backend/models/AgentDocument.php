@@ -15,15 +15,16 @@ class AgentDocument {
 
     // Upload new document
     public function upload() {
-        $query = "INSERT INTO " . $this->table . " (agent_id, doc_type, file_path, status)
-                  VALUES (:agent_id, :doc_type, :file_path, :status)";
+        $query = "INSERT INTO {$this->table} (agent_id, doc_type, file_path, status, uploaded_at)
+                VALUES (:agent_id, :doc_type, :file_path, :status, NOW())";
         $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(":agent_id", $this->agent_id);
-        $stmt->bindParam(":doc_type", $this->doc_type);
-        $stmt->bindParam(":file_path", $this->file_path);
-        $stmt->bindParam(":status", $this->status);
+        $stmt->bindParam(':agent_id', $this->agent_id);
+        $stmt->bindParam(':doc_type', $this->doc_type);
+        $stmt->bindParam(':file_path', $this->file_path);
+        $stmt->bindParam(':status', $this->status);
         return $stmt->execute();
     }
+
 
     // Get all docs for agent
     public function getByAgent($agent_id) {

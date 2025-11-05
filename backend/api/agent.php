@@ -19,17 +19,13 @@ $controller = new AgentController($db);
 
 $method = $_SERVER['REQUEST_METHOD'];
 
-/**
- * Main API Routing
- */
 try {
     switch ($method) {
 
-        /**
-         * POST — Register, Complete Profile, or Upload Document
-         */
         case 'POST':
-            $data = json_decode(file_get_contents("php://input"), true);
+            // Detect multipart vs JSON
+            $isMultipart = isset($_FILES['file']);
+            $data = $isMultipart ? $_POST : json_decode(file_get_contents("php://input"), true);
             $action = $data['action'] ?? '';
 
             switch ($action) {
@@ -47,12 +43,21 @@ try {
                     break;
 
                 case 'upload_document':
-                    if (!isset($data['agent_id'], $data['doc_type'], $data['file_path'])) {
-                        throw new Exception("Missing document upload parameters");
+                    // Handle FormData (multipart/form-data)
+                    if (!isset($_POST['agent_id'], $_POST['doc_type'], $_FILES['file'])) {
+                        http_response_code(400);
+                        echo json_encode(['success' => false, 'message' => 'Missing file upload parameters']);
+                        exit;
                     }
-                    $result = $controller->uploadDocument($data['agent_id'], $data['doc_type'], $data['file_path']);
+
+                    $agent_id = $_POST['agent_id'];
+                    $doc_type = $_POST['doc_type'];
+                    $file = $_FILES['file'];
+
+                    $result = $controller->uploadDocument($agent_id, $doc_type, $file);
                     echo json_encode($result);
                     break;
+
 
                 default:
                     http_response_code(400);
@@ -61,9 +66,6 @@ try {
             }
             break;
 
-        /**
-         * GET — Fetch all pending agents for verification
-         */
         case 'GET':
             if (isset($_GET['pending'])) {
                 $agents = $controller->getPendingVerifications();
@@ -74,9 +76,6 @@ try {
             }
             break;
 
-        /**
-         * PUT — Verify or reject agent
-         */
         case 'PUT':
             $data = json_decode(file_get_contents("php://input"), true);
             if (isset($data['agent_id'], $data['status'])) {
