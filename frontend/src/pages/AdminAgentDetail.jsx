@@ -66,6 +66,7 @@ export default function AdminAgentDetail() {
   if (!data) return <p>Loading...</p>;
 
   const { agent, profile, documents, reviews } = data;
+  console.log("Documents array:", documents);
 
   return (
     <Box p={3}>
@@ -146,7 +147,7 @@ export default function AdminAgentDetail() {
                   {/* Detect file type */}
                   {selectedDoc.file_path.match(/\.(pdf)$/i) ? (
                     <iframe
-                      src={selectedDoc.file_path}
+                      src={`http://localhost:8000${selectedDoc.file_path}`}
                       width="100%"
                       height="600px"
                       style={{ border: "none" }}
@@ -154,13 +155,14 @@ export default function AdminAgentDetail() {
                     ></iframe>
                   ) : (
                     <img
-                      src={selectedDoc.file_path}
+                      src={`http://localhost:8000${selectedDoc.file_path}`}
                       alt={selectedDoc.doc_type}
                       style={{
                         width: "100%",
                         maxHeight: "80vh",
                         objectFit: "contain",
                       }}
+                      onError={(e) => (e.target.style.display = "none")} // hides broken images
                     />
                   )}
 
