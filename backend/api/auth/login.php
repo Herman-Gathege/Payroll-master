@@ -1,10 +1,18 @@
 <?php
+// ✅ CORS HEADERS
 header("Access-Control-Allow-Origin: *");
-header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Methods: POST");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
+header("Content-Type: application/json; charset=UTF-8");
 
-require_once '../config/database.php';
+// ✅ Handle preflight request
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
+require_once '../../config/database.php';
+
 
 $database = new Database();
 $db = $database->getConnection();
@@ -17,7 +25,7 @@ if($request_method == 'POST') {
 
     if(!empty($data->username) && !empty($data->password)) {
         // Query user
-        $query = "SELECT id, username, email, password_hash, role, employee_id, is_active
+        $query = "SELECT id, username, email, password_hash, role, is_active
                   FROM users WHERE username = :username AND is_active = 1";
 
         $stmt = $db->prepare($query);
@@ -48,8 +56,7 @@ if($request_method == 'POST') {
                         "id" => $user['id'],
                         "username" => $user['username'],
                         "email" => $user['email'],
-                        "role" => $user['role'],
-                        "employee_id" => $user['employee_id']
+                        "role" => $user['role']
                     )
                 ));
             } else {

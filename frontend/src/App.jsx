@@ -34,67 +34,6 @@ function PrivateRoute({ children }) {
   return user ? children : <Navigate to="/login" replace />;
 }
 
-// function AppRoutes() {
-//   return (
-//     <Routes>
-//       {/* Public routes */}
-//       <Route path="/" element={<LandingPage />} />
-//       <Route path="/login" element={<Login />} />
-
-//       {/* 🧩 Agent Onboarding Flow (Public entry, then private steps) */}
-//       <Route path="/agent/onboarding/register" element={<AgentRegister />} />
-//       <Route
-//         path="/agent/onboarding/profile"
-//         element={
-//           <PrivateRoute>
-//             <AgentProfile />
-//           </PrivateRoute>
-//         }
-//       />
-//       <Route
-//         path="/agent/onboarding/documents"
-//         element={
-//           <PrivateRoute>
-//             <AgentDocuments />
-//           </PrivateRoute>
-//         }
-//       />
-//       {/* <Route
-//         path="/agent/onboarding/review"
-//         element={
-//           <PrivateRoute>
-//             <AgentVerification />
-//           </PrivateRoute>
-//         }
-//       /> */}
-
-//       {/* 🧭 Main HR system (Protected) */}
-//       <Route
-//         path="/"
-//         element={
-//           <PrivateRoute>
-//             <Layout />
-//           </PrivateRoute>
-//         }
-//       >
-//         <Route index element={<Dashboard />} />
-//         <Route path="employees" element={<Employees />} />
-//         <Route path="employees/new" element={<AddEmployee />} />
-//         <Route path="employees/:id" element={<EmployeeDetail />} />
-//         <Route path="recruitment" element={<Recruitment />} />
-//         <Route path="leave" element={<Leave />} />
-//         <Route path="attendance" element={<Attendance />} />
-//         <Route path="payroll" element={<Payroll />} />
-//         <Route path="performance" element={<Performance />} />
-//         <Route path="training" element={<Training />} />
-//         <Route path="reports" element={<Reports />} />
-//         <Route path="settings" element={<Settings />} />
-//         <Route path="employee-portal" element={<EmployeePortal />} />
-//       </Route>
-//     </Routes>
-//   )
-// }
-
 function AppRoutes() {
   return (
     <Routes>
@@ -108,16 +47,16 @@ function AppRoutes() {
       <Route path="/agent/onboarding/documents" element={<AgentDocuments />} />
       <Route path="/agent/onboarding/success" element={<AgentSuccess />} />
 
-      {/* 🧭 Main HR system (move Dashboard under /dashboard) */}
+      {/* 🧭 Employer Dashboard + HR System */}
       <Route
-        path="/dashboard"
+        path="/employer"
         element={
           <PrivateRoute>
             <Layout />
           </PrivateRoute>
         }
       >
-        <Route index element={<Dashboard />} />
+        <Route path="dashboard" element={<Dashboard />} />
         <Route path="employees" element={<Employees />} />
         <Route path="employees/new" element={<AddEmployee />} />
         <Route path="employees/:id" element={<EmployeeDetail />} />
@@ -129,7 +68,21 @@ function AppRoutes() {
         <Route path="training" element={<Training />} />
         <Route path="reports" element={<Reports />} />
         <Route path="settings" element={<Settings />} />
-        <Route path="employee-portal" element={<EmployeePortal />} />
+      </Route>
+
+      {/* 👤 Employee Self-Service Portal */}
+      <Route
+        path="/employee"
+        element={
+          <PrivateRoute>
+            <Layout />
+          </PrivateRoute>
+        }
+      >
+        <Route path="portal" element={<EmployeePortal />} />
+        <Route path="leave" element={<Leave />} />
+        <Route path="attendance" element={<Attendance />} />
+        <Route path="payslips" element={<Payroll />} />
       </Route>
 
       {/* Catch-all redirect */}
@@ -137,6 +90,7 @@ function AppRoutes() {
     </Routes>
   );
 }
+
 
 export default function App() {
   return (
