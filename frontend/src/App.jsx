@@ -25,6 +25,9 @@ import AgentDocuments from "./pages/AgentOnboarding/AgentDocuments";
 import AgentSuccess from "./pages/AgentOnboarding/AgentSuccess";
 // import AgentVerification from './pages/AgentOnboarding/AgentVerification'
 import LandingPage from "./pages/LandingPage";
+import AgentList from "./pages/AdminAgentsList";
+import AgentDetail from "./pages/AdminAgentDetail";
+import AgentDashboard from "./pages/AgentDashboard";
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -68,6 +71,9 @@ function AppRoutes() {
         <Route path="training" element={<Training />} />
         <Route path="reports" element={<Reports />} />
         <Route path="settings" element={<Settings />} />
+
+        <Route path="agents" element={<AgentList />} />
+        <Route path="agents/:id" element={<AgentDetail />} />
       </Route>
 
       {/* 👤 Employee Self-Service Portal */}
@@ -85,12 +91,21 @@ function AppRoutes() {
         <Route path="payslips" element={<Payroll />} />
       </Route>
 
+      {/* 🧭 Agent Dashboard (after onboarding complete) */}
+      <Route
+        path="/agent/dashboard"
+        element={
+          <PrivateRoute>
+            <AgentDashboard />
+          </PrivateRoute>
+        }
+      />
+
       {/* Catch-all redirect */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
-
 
 export default function App() {
   return (

@@ -159,5 +159,107 @@ class AgentController {
 
         return ['success' => false, 'message' => 'Failed to update agent status'];
     }
+
+    // inside AgentController class
+
+/**
+ * Return list of agents with basic fields (admin list)
+ */
+public function getAllAgents($filter = null) {
+    $query = "SELECT a.id, a.full_name, a.email, a.phone, a.status, a.onboarding_stage, a.created_at
+              FROM agents a";
+
+    if ($filter === 'pending') {
+        $query .= " WHERE a.status = 'pending' OR a.onboarding_stage != 'completed'";
+    } elseif ($filter === 'verified') {
+        $query .= " WHERE a.status = 'verified'";
+    } elseif ($filter === 'rejected') {
+        $query .= " WHERE a.status = 'rejected'";
+    }
+
+    $query .= " ORDER BY a.created_at DESC";
+
+    $stmt = $this->conn->prepare($query);
+    $stmt->execute();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Get a single agent full details including profile and documents
+ */
+public function getAgentById($agent_id) {
+    // Agent core
+    $query = "SELECT * FROM agents WHERE id = :id LIMIT 1";
+    $stmt = $this->conn->prepare($query);
+    $stmt->bindParam(':id', $agent_id);
+    $stmt->execute();
+    $agent = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$agent) return null;
+
+    // Profile
+    $query = "SELECT * FROM agent_profiles WHERE agent_id = :id LIMIT 1";
+    $stmt = $this->conn->prepare($query);
+    $stmt->bindParam(':id', $agent_id);
+    $stmt->execute();
+    $profile = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    // Documents
+    $query = "SELECT id, doc_type, file_path, status, uploaded_at FROM agent_documents WHERE agent_id = :id ORDER BY uploaded_at DESC";
+    $stmt = $this->conn->prepare($query);
+    $stmt->bindParam(':id', $agent_id);
+    $stmt->execute();
+    $documents = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Reviews
+    $query = "SELECT r.*, u.username as reviewer_username FROM agent_reviews r LEFT JOIN users u ON r.reviewer_id = u.id WHERE r.agent_id = :id ORDER BY r.created_at DESC";
+    $stmt = $this->conn->prepare($query);
+    $stmt->bindParam(':id', $agent_id);
+    $stmt->execute();
+    $reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    return [
+        'agent' => $agent,
+        'profile' => $profile,
+        'documents' => $documents,
+        'reviews' => $reviews
+    ];
+}
+
+/**
+ * Review (approve/reject) an agent
+ * $reviewer_id should be the logged-in admin/reviewer id
+ * $action = 'approved' or 'rejected'
+ */
+public function reviewAgent($agent_id, $reviewer_id, $action, $comment = null) {
+    if (!in_array($action, ['approved', 'rejected'])) {
+        return ['success' => false, 'message' => 'Invalid action'];
+    }
+
+    // insert review record
+    $query = "INSERT INTO agent_reviews (agent_id, reviewer_id, action, comment) VALUES (:agent_id, :reviewer_id, :action, :comment)";
+    $stmt = $this->conn->prepare($query);
+    $stmt->bindParam(':agent_id', $agent_id);
+    $stmt->bindParam(':reviewer_id', $reviewer_id);
+    $stmt->bindParam(':action', $action);
+    $stmt->bindParam(':comment', $comment);
+    $stmt->execute();
+
+    // update agent status & stage
+    $newStatus = ($action === 'approved') ? 'verified' : 'rejected';
+    $newStage = ($action === 'approved') ? 'completed' : 'documents_rejected';
+
+    $agent = new Agent($this->conn);
+    $agent->updateStatus($agent_id, $newStatus);
+    $agent->updateStage($agent_id, $newStage);
+
+    // Optional: return the agent record or message
+    return [
+        'success' => true,
+        'message' => 'Agent ' . $action,
+        'status' => $newStatus
+    ];
+}
+
 }
 ?>
