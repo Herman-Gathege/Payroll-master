@@ -8,8 +8,8 @@ class Database
 {
     private static $host = 'localhost';
     private static $db_name = 'hr_management_system';
-    private static $username = 'root'; // or your MySQL username
-    private static $password = '';     // or your MySQL password
+    private static $username = 'hruser'; 
+    private static $password = 'Hrm@2025!Secure'; 
     private static $conn;
 
     public static function connect()
