@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { fetchAgents } from '../services/agentAdminService';
-import { useNavigate } from 'react-router-dom';
+import { fetchAgents } from "../services/agentAdminService";
+import { useNavigate } from "react-router-dom";
 import {
   Button,
   Select,
@@ -14,10 +14,10 @@ import {
   Box,
   TableContainer,
   TablePagination,
-} from '@mui/material';
+} from "@mui/material";
 
 export default function AdminAgentsList() {
-  const [filter, setFilter] = useState('pending');
+  const [filter, setFilter] = useState("pending");
   const [agents, setAgents] = useState([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
@@ -46,7 +46,10 @@ export default function AdminAgentsList() {
   };
 
   // slice data for pagination
-  const paginatedAgents = agents.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  const paginatedAgents = agents.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
 
   return (
     <Box p={3}>
@@ -71,13 +74,28 @@ export default function AdminAgentsList() {
         <TableContainer>
           <Table>
             <TableHead>
-              <TableRow sx={{ backgroundColor: '#f7fafc' }}>
-                <TableCell><strong>Name</strong></TableCell>
-                <TableCell><strong>Email</strong></TableCell>
-                <TableCell><strong>Phone</strong></TableCell>
-                <TableCell><strong>Stage</strong></TableCell>
-                <TableCell><strong>Created</strong></TableCell>
-                <TableCell align="center"><strong>Actions</strong></TableCell>
+              <TableRow sx={{ backgroundColor: "#f7fafc" }}>
+                <TableCell>
+                  <strong>Name</strong>
+                </TableCell>
+                <TableCell>
+                  <strong>Email</strong>
+                </TableCell>
+                <TableCell>
+                  <strong>Phone</strong>
+                </TableCell>
+                <TableCell>
+                  <strong>Status</strong>
+                </TableCell>
+                <TableCell>
+                  <strong>Stage</strong>
+                </TableCell>
+                <TableCell>
+                  <strong>Created</strong>
+                </TableCell>
+                <TableCell align="center">
+                  <strong>Actions</strong>
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -87,8 +105,25 @@ export default function AdminAgentsList() {
                     <TableCell>{a.full_name}</TableCell>
                     <TableCell>{a.email}</TableCell>
                     <TableCell>{a.phone}</TableCell>
+                    <TableCell>
+                      <span
+                        style={{
+                          color:
+                            a.status === "verified"
+                              ? "green"
+                              : a.status === "rejected"
+                              ? "red"
+                              : "orange",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {a.status}
+                      </span>
+                    </TableCell>
                     <TableCell>{a.onboarding_stage}</TableCell>
-                    <TableCell>{new Date(a.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      {new Date(a.created_at).toLocaleDateString()}
+                    </TableCell>
                     <TableCell align="center">
                       <Button
                         size="small"
@@ -102,7 +137,7 @@ export default function AdminAgentsList() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
+                  <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
                     No agents found for this filter
                   </TableCell>
                 </TableRow>

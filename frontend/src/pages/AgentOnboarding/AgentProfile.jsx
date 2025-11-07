@@ -22,6 +22,9 @@ export default function AgentProfile() {
     region: "",
     id_number: "",
     gender: "",
+    university_name: "",
+    university_email: "",
+    university_id: "",
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -88,7 +91,7 @@ export default function AgentProfile() {
           align="center"
           sx={{ color: "var(--gray)", mb: 3 }}
         >
-          Fill in your personal and contact details below to continue your
+          Fill in your personal, contact, and university details to continue
           onboarding.
         </Typography>
 
@@ -109,6 +112,7 @@ export default function AgentProfile() {
           onSubmit={handleSubmit}
           sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 2 }}
         >
+          {/* Basic Info */}
           {["phone", "address", "region", "id_number"].map((field) => (
             <TextField
               key={field}
@@ -120,6 +124,7 @@ export default function AgentProfile() {
             />
           ))}
 
+          {/* Gender Selector */}
           <TextField
             select
             label="Gender"
@@ -132,7 +137,29 @@ export default function AgentProfile() {
             <option value="">Select Gender</option>
             <option value="male">Male</option>
             <option value="female">Female</option>
+            <option value="other">Other</option>
           </TextField>
+
+          {/* University Section */}
+          <Typography
+            variant="subtitle1"
+            sx={{ mt: 3, color: "var(--primary)", fontWeight: 600 }}
+          >
+            University Information
+          </Typography>
+
+          {["university_name", "university_email", "university_id"].map(
+            (field) => (
+              <TextField
+                key={field}
+                label={field.replace("_", " ").toUpperCase()}
+                name={field}
+                value={form[field]}
+                onChange={handleChange}
+                fullWidth
+              />
+            )
+          )}
 
           <Button
             type="submit"

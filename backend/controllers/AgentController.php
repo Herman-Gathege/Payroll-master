@@ -61,6 +61,11 @@ class AgentController {
         $profile->education_level = $data['education_level'] ?? '';
         $profile->referred_by = $data['referred_by'] ?? '';
 
+        // ✅ new fields
+        $profile->university_name = $data['university_name'] ?? '';
+        $profile->university_email = $data['university_email'] ?? '';
+        $profile->university_id = $data['university_id'] ?? '';
+
         if ($profile->upsert()) {
             $agent = new Agent($this->conn);
             $agent->updateStage($agent_id, 'profile_completed');
@@ -74,58 +79,71 @@ class AgentController {
         return ['success' => false, 'message' => 'Failed to save profile'];
     }
 
+
     /**
-     * 3️⃣ Upload agent document
-     */
+ * 3️⃣ Upload agent document
+ */
     public function uploadDocument($agent_id, $doc_type, $file) {
         if (!isset($file) || $file['error'] !== UPLOAD_ERR_OK) {
             return ['success' => false, 'message' => 'Invalid or missing file'];
         }
 
-        // Ensure upload directory exists (publicly accessible)
+        // ✅ Validate document type (allow only known keys)
+        $allowedTypes = [
+            'id_front' => 'National ID (Front)',
+            'id_back' => 'National ID (Back)',
+            'school_front' => 'School ID (Front)',
+            'school_back' => 'School ID (Back)',
+            'passport' => 'Passport',
+            'license' => 'Driving License',
+            'birth_certificate' => 'Birth Certificate',
+        ];
+
+        if (!array_key_exists(strtolower($doc_type), $allowedTypes)) {
+            return ['success' => false, 'message' => 'Invalid document type'];
+        }
+
+        // ✅ Ensure upload directory exists (publicly accessible)
         $uploadDir = __DIR__ . '/../uploads/agents/';
         if (!is_dir($uploadDir)) {
             mkdir($uploadDir, 0777, true);
         }
 
-        // Sanitize filename and store file
+        // ✅ Sanitize and move file
         $safeName = preg_replace('/[^A-Za-z0-9_\.-]/', '_', basename($file['name']));
-        $fileName = uniqid() . '_' . $safeName;
+        $fileName = uniqid($doc_type . '_') . '_' . $safeName;
         $filePath = $uploadDir . $fileName;
 
         if (!move_uploaded_file($file['tmp_name'], $filePath)) {
             return ['success' => false, 'message' => 'Failed to save uploaded file'];
         }
 
-        // Save relative path for frontend use
         $relativePath = '/uploads/agents/' . $fileName;
 
-        // Save to database
+        // ✅ Save to database
         require_once __DIR__ . '/../models/AgentDocument.php';
         $doc = new AgentDocument($this->conn);
         $doc->agent_id = $agent_id;
         $doc->doc_type = strtolower($doc_type);
         $doc->file_path = $relativePath;
         $doc->status = 'pending';
+        $doc->label = $allowedTypes[strtolower($doc_type)];
 
         if ($doc->upload()) {
+            // Update agent stage to documents_uploaded if not already done
             $agent = new Agent($this->conn);
-
-            // ✅ Update onboarding stage to completed
-            $agent->updateStage($agent_id, 'completed');
-
-            // (Optional) Also automatically mark status as 'pending'
-            $agent->updateStatus($agent_id, 'pending');
+            $agent->updateStage($agent_id, 'documents_uploaded');
 
             return [
                 'success' => true,
-                'message' => 'Document uploaded successfully! Your onboarding is now complete.'
+                'message' => "Uploaded {$allowedTypes[strtolower($doc_type)]} successfully!",
+                'file' => $relativePath
             ];
         }
 
-
         return ['success' => false, 'message' => 'Database record failed to save'];
     }
+
 
 
 

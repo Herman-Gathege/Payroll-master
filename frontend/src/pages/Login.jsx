@@ -43,7 +43,7 @@ export default function Login() {
           role === 'hr_manager' || role === 'payroll_officer' || 
           role === 'department_manager' || role === 'recruiter') {
         console.log('Navigating to employer dashboard...')
-        navigate('/employer', { replace: true })
+        navigate('/employer/dashboard', { replace: true })
       } else if (role === 'employee') {
         console.log('Navigating to employee portal...')
         navigate('/employee/portal', { replace: true })

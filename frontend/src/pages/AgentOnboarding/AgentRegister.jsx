@@ -5,7 +5,13 @@ import OnboardingStepper from "../../components/OnboardingStepper";
 
 export default function AgentRegister() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ email: "", full_name: "", phone: "" });
+  const [form, setForm] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    country_code: "+254",
+    phone: "",
+  });
   const [loading, setLoading] = useState(false);
   const [registered, setRegistered] = useState(false);
   const [error, setError] = useState("");
@@ -19,12 +25,20 @@ export default function AgentRegister() {
     setError("");
 
     try {
-      const response = await registerAgent(form);
+      // Combine first + last name before sending to backend
+      const full_name = `${form.first_name.trim()} ${form.last_name.trim()}`;
+      const formattedPhone = `${form.country_code}${form.phone.replace(/^0+/, "")}`;
+
+      const response = await registerAgent({
+        full_name,
+        email: form.email,
+        phone: formattedPhone,
+      });
+
       if (response.success) {
         setRegistered(true);
         console.log("Navigating to /agent/onboarding/profile with ID:", response.agent_id);
 
-        // Navigate to profile step and pass agent_id
         navigate("/agent/onboarding/profile", {
           state: { agent_id: response.agent_id },
         });
@@ -47,14 +61,25 @@ export default function AgentRegister() {
 
         {!registered ? (
           <form onSubmit={handleSubmit}>
-            <input
-              type="text"
-              name="full_name"
-              placeholder="Full Name"
-              value={form.full_name}
-              onChange={handleChange}
-              required
-            />
+            <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
+              <input
+                type="text"
+                name="first_name"
+                placeholder="First Name"
+                value={form.first_name}
+                onChange={handleChange}
+                required
+              />
+              <input
+                type="text"
+                name="last_name"
+                placeholder="Last Name"
+                value={form.last_name}
+                onChange={handleChange}
+                required
+              />
+            </div>
+
             <input
               type="email"
               name="email"
@@ -63,14 +88,31 @@ export default function AgentRegister() {
               onChange={handleChange}
               required
             />
-            <input
-              type="tel"
-              name="phone"
-              placeholder="Phone Number"
-              value={form.phone}
-              onChange={handleChange}
-              required
-            />
+
+            <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "10px", marginTop: "10px" }}>
+              <select
+                name="country_code"
+                value={form.country_code}
+                onChange={handleChange}
+                style={{ width: "100px", padding: "8px" }}
+              >
+                <option value="+254">🇰🇪 +254</option>
+                <option value="+255">🇹🇿 +255</option>
+                <option value="+256">🇺🇬 +256</option>
+                <option value="+250">🇷🇼 +250</option>
+                <option value="+1">🇺🇸 +1</option>
+              </select>
+
+              <input
+                type="tel"
+                name="phone"
+                placeholder="Phone Number"
+                value={form.phone}
+                onChange={handleChange}
+                required
+                style={{ flex: 1 }}
+              />
+            </div>
 
             <button type="submit" disabled={loading}>
               {loading ? "Registering..." : "Continue Onboarding"}

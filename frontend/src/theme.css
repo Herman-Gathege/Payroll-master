@@ -46,10 +46,28 @@ body {
   padding: 0.6rem 1.4rem;
   cursor: pointer;
   transition: var(--transition);
+    text-decoration: none;
+
 }
 
 .btn-primary:hover {
   background-color: var(--light-blue);
+}
+
+.btn-outline-1 {
+  background: transparent;
+  border: 1px solid var(--secondary);
+  color: var(--secondary);
+  border-radius: var(--radius);
+  padding: 0.6rem 1.4rem;
+  cursor: pointer;
+  transition: var(--transition);
+  text-decoration: none;
+}
+
+.btn-outline-1:hover {
+  background: var(--light-blue);
+  color: var(--light);
 }
 
 .btn-outline {
