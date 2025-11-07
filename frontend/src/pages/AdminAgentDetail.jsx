@@ -9,10 +9,12 @@ import {
   Paper,
   Button,
   TextField,
-  Link,
+  Typography,
   Modal,
   Backdrop,
   Fade,
+  Divider,
+  Chip,
 } from "@mui/material";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -20,10 +22,12 @@ export default function AdminAgentDetail() {
   const { id } = useParams();
   const [data, setData] = useState(null);
   const [comment, setComment] = useState("");
-  const { user } = useAuth(); // reviewer info
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState(null);
+
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
   useEffect(() => {
     load();
@@ -39,12 +43,14 @@ export default function AdminAgentDetail() {
       alert("You must be logged in as a reviewer");
       return;
     }
+
     const res = await reviewAgentAdmin({
       agent_id: id,
       reviewer_id: user.id,
       decision,
       comment,
     });
+
     if (res.success) {
       alert(res.message);
       navigate("/employer/agents");
@@ -63,146 +69,127 @@ export default function AdminAgentDetail() {
     setSelectedDoc(null);
   };
 
-  if (!data) return <p>Loading...</p>;
+  if (!data) return <Typography p={4}>Loading agent data...</Typography>;
 
   const { agent, profile, documents, reviews } = data;
-  console.log("Documents array:", documents);
 
   return (
-    <Box p={3}>
-      <Button onClick={() => navigate(-1)}>Back</Button>
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <h2>
-          {agent.full_name} — {agent.email}
-        </h2>
-        <p>Phone: {agent.phone}</p>
-        <p>
-          Stage: {agent.onboarding_stage} — Status: {agent.status}
-        </p>
+    <Box sx={{ p: 4, background: "#f9fafc", minHeight: "100vh" }}>
+      <Button variant="outlined" onClick={() => navigate(-1)} sx={{ mb: 3 }}>
+        ← Back
+      </Button>
+
+      {/* Agent Summary */}
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h5" fontWeight={600}>
+          {agent.full_name}
+        </Typography>
+        <Typography color="text.secondary">{agent.email}</Typography>
+        <Typography sx={{ mt: 1 }}>📞 {agent.phone}</Typography>
+
+        <Divider sx={{ my: 2 }} />
+        <Box display="flex" gap={2} alignItems="center">
+          <Chip label={`Stage: ${agent.onboarding_stage}`} color="info" />
+          <Chip
+            label={`Status: ${agent.status}`}
+            color={
+              agent.status === "verified"
+                ? "success"
+                : agent.status === "rejected"
+                ? "error"
+                : "warning"
+            }
+          />
+        </Box>
       </Paper>
 
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <h3>Profile</h3>
+      {/* Profile */}
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" mb={1}>
+          Profile Details
+        </Typography>
         {profile ? (
-          <div>
-            <p>ID: {profile.id_number}</p>
-            <p>Address: {profile.address}</p>
-            <p>Gender: {profile.gender}</p>
-          </div>
+          <Box sx={{ color: "text.secondary", lineHeight: 1.8 }}>
+            <p><strong>ID Number:</strong> {profile.id_number}</p>
+            <p><strong>Address:</strong> {profile.address}</p>
+            <p><strong>Gender:</strong> {profile.gender}</p>
+          </Box>
         ) : (
-          <p>No profile yet</p>
+          <Typography>No profile data available.</Typography>
         )}
       </Paper>
 
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <h3>Documents</h3>
+      {/* Documents */}
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" mb={1}>
+          Uploaded Documents
+        </Typography>
         {documents.length ? (
           documents.map((d) => (
-            <div key={d.id} style={{ marginBottom: 8 }}>
-              <strong>{d.doc_type}</strong> —{" "}
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => handleOpen(d)}
-              >
-                View
-              </Button>{" "}
-              — {d.status}
-            </div>
-          ))
-        ) : (
-          <p>No docs</p>
-        )}
-
-        {/* 📄 Document Preview Modal */}
-        <Modal
-          open={open}
-          onClose={handleClose}
-          closeAfterTransition
-          BackdropComponent={Backdrop}
-          BackdropProps={{ timeout: 500 }}
-        >
-          <Fade in={open}>
             <Box
+              key={d.id}
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
               sx={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                bgcolor: "background.paper",
-                boxShadow: 24,
-                borderRadius: 2,
-                width: "80%",
-                maxHeight: "90vh",
-                overflow: "auto",
-                p: 2,
+                p: 1,
+                borderBottom: "1px solid #eee",
+                "&:last-child": { borderBottom: "none" },
               }}
             >
-              {selectedDoc && (
-                <>
-                  <h3 style={{ marginBottom: "10px" }}>
-                    {selectedDoc.doc_type.toUpperCase()}
-                  </h3>
-
-                  {/* Detect file type */}
-                  {selectedDoc.file_path.match(/\.(pdf)$/i) ? (
-                    <iframe
-                      src={`http://localhost:8000${selectedDoc.file_path}`}
-                      width="100%"
-                      height="600px"
-                      style={{ border: "none" }}
-                      title="Document Preview"
-                    ></iframe>
-                  ) : (
-                    <img
-                      src={`http://localhost:8000${selectedDoc.file_path}`}
-                      alt={selectedDoc.doc_type}
-                      style={{
-                        width: "100%",
-                        maxHeight: "80vh",
-                        objectFit: "contain",
-                      }}
-                      onError={(e) => (e.target.style.display = "none")} // hides broken images
-                    />
-                  )}
-
-                  <Box mt={2} textAlign="right">
-                    <Button
-                      onClick={handleClose}
-                      variant="contained"
-                      color="primary"
-                    >
-                      Close
-                    </Button>
-                  </Box>
-                </>
-              )}
+              <Typography>{d.doc_type.toUpperCase()}</Typography>
+              <Box display="flex" gap={1} alignItems="center">
+                <Chip
+                  label={d.status}
+                  size="small"
+                  color={
+                    d.status === "pending"
+                      ? "warning"
+                      : d.status === "verified"
+                      ? "success"
+                      : "error"
+                  }
+                />
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => handleOpen(d)}
+                >
+                  View
+                </Button>
+              </Box>
             </Box>
-          </Fade>
-        </Modal>
+          ))
+        ) : (
+          <Typography>No uploaded documents.</Typography>
+        )}
       </Paper>
 
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <h3>Review</h3>
+      {/* Review Section */}
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" mb={1}>
+          Review Action
+        </Typography>
         <TextField
           label="Comment (optional)"
           multiline
           rows={3}
+          fullWidth
           value={comment}
           onChange={(e) => setComment(e.target.value)}
-          fullWidth
+          sx={{ mb: 2 }}
         />
-        <Box mt={2} display="flex" gap={2}>
+        <Box display="flex" gap={2}>
           <Button
-            color="success"
             variant="contained"
+            color="success"
             onClick={() => handleDecision("approved")}
           >
             Approve
           </Button>
           <Button
-            color="error"
             variant="outlined"
+            color="error"
             onClick={() => handleDecision("rejected")}
           >
             Reject
@@ -210,23 +197,93 @@ export default function AdminAgentDetail() {
         </Box>
       </Paper>
 
-      <Paper sx={{ p: 2 }}>
-        <h3>History</h3>
+      {/* Review History */}
+      <Paper sx={{ p: 3 }}>
+        <Typography variant="h6" mb={1}>
+          Review History
+        </Typography>
         {reviews.length ? (
           reviews.map((r) => (
-            <div key={r.id}>
-              <p>
-                {r.reviewer_username} — {r.action} —{" "}
+            <Box key={r.id} mb={1}>
+              <Typography>
+                <strong>{r.reviewer_username}</strong> — {r.action} —{" "}
                 {new Date(r.created_at).toLocaleString()}
-              </p>
-              {r.comment && <p>Note: {r.comment}</p>}
-              <hr />
-            </div>
+              </Typography>
+              {r.comment && (
+                <Typography color="text.secondary" fontSize={14}>
+                  “{r.comment}”
+                </Typography>
+              )}
+              <Divider sx={{ my: 1 }} />
+            </Box>
           ))
         ) : (
-          <p>No reviews yet</p>
+          <Typography>No reviews recorded.</Typography>
         )}
       </Paper>
+
+      {/* Document Preview Modal */}
+      <Modal
+        open={open}
+        onClose={handleClose}
+        closeAfterTransition
+        BackdropComponent={Backdrop}
+        BackdropProps={{ timeout: 500 }}
+      >
+        <Fade in={open}>
+          <Box
+            sx={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              bgcolor: "background.paper",
+              boxShadow: 24,
+              borderRadius: 2,
+              width: "80%",
+              maxHeight: "90vh",
+              overflow: "auto",
+              p: 2,
+            }}
+          >
+            {selectedDoc && (
+              <>
+                <Typography variant="h6" mb={2}>
+                  {selectedDoc.doc_type.toUpperCase()}
+                </Typography>
+                {selectedDoc.file_path.match(/\.(pdf)$/i) ? (
+                  <iframe
+                    src={`${BASE_URL}${selectedDoc.file_path}`}
+                    width="100%"
+                    height="600px"
+                    style={{ border: "none" }}
+                    title="Document Preview"
+                  ></iframe>
+                ) : (
+                  <img
+                    src={`${BASE_URL}${selectedDoc.file_path}`}
+                    alt={selectedDoc.doc_type}
+                    style={{
+                      width: "100%",
+                      maxHeight: "80vh",
+                      objectFit: "contain",
+                    }}
+                  />
+                )}
+                <Box mt={2} textAlign="right">
+                  <Button
+                    onClick={handleClose}
+                    variant="contained"
+                    color="primary"
+                  >
+                    Close
+                  </Button>
+                </Box>
+              </>
+            )}
+          </Box>
+        </Fade>
+      </Modal>
     </Box>
   );
 }

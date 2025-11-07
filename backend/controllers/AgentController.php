@@ -244,40 +244,64 @@ public function getAgentById($agent_id) {
     ];
 }
 
-/**
- * Review (approve/reject) an agent
- * $reviewer_id should be the logged-in admin/reviewer id
- * $action = 'approved' or 'rejected'
- */
-public function reviewAgent($agent_id, $reviewer_id, $action, $comment = null) {
-    if (!in_array($action, ['approved', 'rejected'])) {
-        return ['success' => false, 'message' => 'Invalid action'];
+    /**
+     * 6️⃣ Review agent verification (approve/reject) with comments
+     */
+    public function reviewAgent($agent_id, $reviewer_id, $action, $comment = null) {
+        if (!in_array($action, ['approved', 'rejected'])) {
+            return ['success' => false, 'message' => 'Invalid action'];
+        }
+
+        try {
+            $this->conn->beginTransaction();
+
+            // 1️⃣ Insert review record
+            $query = "INSERT INTO agent_reviews (agent_id, reviewer_id, action, comment) 
+                    VALUES (:agent_id, :reviewer_id, :action, :comment)";
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(':agent_id', $agent_id);
+            $stmt->bindParam(':reviewer_id', $reviewer_id);
+            $stmt->bindParam(':action', $action);
+            $stmt->bindParam(':comment', $comment);
+            $stmt->execute();
+
+            // 2️⃣ Update agent status & stage
+            $newStatus = ($action === 'approved') ? 'verified' : 'rejected';
+            $newStage = ($action === 'approved') ? 'completed' : 'documents_rejected';
+
+            $agent = new Agent($this->conn);
+            $agent->updateStatus($agent_id, $newStatus);
+            $agent->updateStage($agent_id, $newStage);
+
+            // 3️⃣ Update all agent documents’ statuses
+            $docStatus = ($action === 'approved') ? 'verified' : 'rejected';
+            $updateDocs = $this->conn->prepare("
+                UPDATE agent_documents 
+                SET status = :status 
+                WHERE agent_id = :agent_id
+            ");
+            $updateDocs->bindParam(':status', $docStatus);
+            $updateDocs->bindParam(':agent_id', $agent_id);
+            $updateDocs->execute();
+
+            $this->conn->commit();
+
+            // ✅ Return success response
+            return [
+                'success' => true,
+                'message' => 'Agent ' . $action . ' and documents updated successfully.',
+                'status' => $newStatus
+            ];
+
+        } catch (Exception $e) {
+            $this->conn->rollBack();
+            return [
+                'success' => false,
+                'message' => 'Error during review: ' . $e->getMessage()
+            ];
+        }
     }
 
-    // insert review record
-    $query = "INSERT INTO agent_reviews (agent_id, reviewer_id, action, comment) VALUES (:agent_id, :reviewer_id, :action, :comment)";
-    $stmt = $this->conn->prepare($query);
-    $stmt->bindParam(':agent_id', $agent_id);
-    $stmt->bindParam(':reviewer_id', $reviewer_id);
-    $stmt->bindParam(':action', $action);
-    $stmt->bindParam(':comment', $comment);
-    $stmt->execute();
-
-    // update agent status & stage
-    $newStatus = ($action === 'approved') ? 'verified' : 'rejected';
-    $newStage = ($action === 'approved') ? 'completed' : 'documents_rejected';
-
-    $agent = new Agent($this->conn);
-    $agent->updateStatus($agent_id, $newStatus);
-    $agent->updateStage($agent_id, $newStage);
-
-    // Optional: return the agent record or message
-    return [
-        'success' => true,
-        'message' => 'Agent ' . $action,
-        'status' => $newStatus
-    ];
-}
 
 }
 ?>

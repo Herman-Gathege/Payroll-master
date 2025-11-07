@@ -65,7 +65,7 @@ export default function AdminAgentsList() {
             <MenuItem value="pending">Pending</MenuItem>
             <MenuItem value="verified">Verified</MenuItem>
             <MenuItem value="rejected">Rejected</MenuItem>
-            <MenuItem value="">All</MenuItem>
+            <MenuItem value="All">All</MenuItem>
           </Select>
         </Box>
       </Paper>
