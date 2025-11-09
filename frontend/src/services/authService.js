@@ -21,3 +21,18 @@ export const authService = {
     return localStorage.getItem('token')
   }
 }
+
+// add this to your existing authService
+const API_BASE = import.meta.env.VITE_API_BASE_LINK || 'http://localhost:8000';
+
+export async function loginAgent(full_name, id_number) {
+  const res = await fetch(`${API_BASE}/api/agent/login.php`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ full_name, id_number })
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'Agent login failed');
+  return data;
+}

@@ -28,6 +28,12 @@ import LandingPage from "./pages/LandingPage";
 import AgentList from "./pages/AdminAgentsList";
 import AgentDetail from "./pages/AdminAgentDetail";
 import AgentDashboard from "./pages/AgentDashboard";
+import AgentLogin from "./pages/AgentLogin";
+import AgentLayout from "./components/AgentLayout";
+import AgentSales from "./pages/AgentSales";
+import AgentClients from "./pages/AgentClients";
+import AgentCommissions from "./pages/AgentCommissions";
+import AgentProfilePage from "./pages/AgentProfilePage";
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -35,6 +41,11 @@ function PrivateRoute({ children }) {
   if (loading) return <p>Loading...</p>; // prevent flashing before auth loads
 
   return user ? children : <Navigate to="/login" replace />;
+}
+
+function AgentRoute({ children }) {
+  const token = localStorage.getItem("agent_token");
+  return token ? children : <Navigate to="/agent/login" replace />;
 }
 
 function AppRoutes() {
@@ -49,6 +60,7 @@ function AppRoutes() {
       <Route path="/agent/onboarding/profile" element={<AgentProfile />} />
       <Route path="/agent/onboarding/documents" element={<AgentDocuments />} />
       <Route path="/agent/onboarding/success" element={<AgentSuccess />} />
+      <Route path="/agent/login" element={<AgentLogin />} />
 
       {/* 🧭 Employer Dashboard + HR System */}
       <Route
@@ -92,14 +104,21 @@ function AppRoutes() {
       </Route>
 
       {/* 🧭 Agent Dashboard (after onboarding complete) */}
+      {/* 🧭 Agent Dashboard Layout (for all agent routes) */}
       <Route
-        path="/agent/dashboard"
+        path="/agent"
         element={
-          <PrivateRoute>
-            <AgentDashboard />
-          </PrivateRoute>
+          <AgentRoute>
+            <AgentLayout />
+          </AgentRoute>
         }
-      />
+      >
+        <Route path="dashboard" element={<AgentDashboard />} />
+        <Route path="sales" element={<AgentSales />} />
+        <Route path="clients" element={<AgentClients />} />
+        <Route path="commissions" element={<AgentCommissions />} />
+        <Route path="profile" element={<AgentProfilePage />} />
+      </Route>
 
       {/* Catch-all redirect */}
       <Route path="*" element={<Navigate to="/" replace />} />

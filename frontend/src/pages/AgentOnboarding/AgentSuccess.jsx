@@ -9,7 +9,7 @@ export default function AgentSuccess() {
   useEffect(() => {
     const timer = setTimeout(() => {
       navigate("/login");
-    }, 4000);
+    }, 9000);
     return () => clearTimeout(timer);
   }, [navigate]);
 

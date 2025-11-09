@@ -14,13 +14,24 @@ export default function LandingPage() {
           digital business solutions that empower small enterprises across
           Kenya.
         </p>
-        <div className="hero-buttons" >
-          <Link to="/agent/onboarding/register" className="btn-primary mr-4" style={{ marginRight: '1rem' }}>
+        <div className="hero-buttons">
+          <Link
+            to="/agent/onboarding/register"
+            className="btn-primary mr-4"
+            style={{ marginRight: "1rem" }}
+          >
             Get Started
           </Link>
-          <Link to="/login" className="btn-outline-1">
-            Login
+          <Link
+            to="/agent/login"
+            className="btn-outline-1"
+            style={{ marginRight: "1rem" }}
+          >
+            Agent Login
           </Link>
+          {/* <Link to="/login" className="btn-outline-1">
+            Employer Login
+          </Link> */}
         </div>
       </header>
 
