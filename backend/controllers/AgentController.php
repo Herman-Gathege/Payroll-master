@@ -245,62 +245,122 @@ public function getAgentById($agent_id) {
 }
 
     /**
-     * 6️⃣ Review agent verification (approve/reject) with comments
-     */
-    public function reviewAgent($agent_id, $reviewer_id, $action, $comment = null) {
-        if (!in_array($action, ['approved', 'rejected'])) {
-            return ['success' => false, 'message' => 'Invalid action'];
-        }
-
-        try {
-            $this->conn->beginTransaction();
-
-            // 1️⃣ Insert review record
-            $query = "INSERT INTO agent_reviews (agent_id, reviewer_id, action, comment) 
-                    VALUES (:agent_id, :reviewer_id, :action, :comment)";
-            $stmt = $this->conn->prepare($query);
-            $stmt->bindParam(':agent_id', $agent_id);
-            $stmt->bindParam(':reviewer_id', $reviewer_id);
-            $stmt->bindParam(':action', $action);
-            $stmt->bindParam(':comment', $comment);
-            $stmt->execute();
-
-            // 2️⃣ Update agent status & stage
-            $newStatus = ($action === 'approved') ? 'verified' : 'rejected';
-            $newStage = ($action === 'approved') ? 'completed' : 'documents_rejected';
-
-            $agent = new Agent($this->conn);
-            $agent->updateStatus($agent_id, $newStatus);
-            $agent->updateStage($agent_id, $newStage);
-
-            // 3️⃣ Update all agent documents’ statuses
-            $docStatus = ($action === 'approved') ? 'verified' : 'rejected';
-            $updateDocs = $this->conn->prepare("
-                UPDATE agent_documents 
-                SET status = :status 
-                WHERE agent_id = :agent_id
-            ");
-            $updateDocs->bindParam(':status', $docStatus);
-            $updateDocs->bindParam(':agent_id', $agent_id);
-            $updateDocs->execute();
-
-            $this->conn->commit();
-
-            // ✅ Return success response
-            return [
-                'success' => true,
-                'message' => 'Agent ' . $action . ' and documents updated successfully.',
-                'status' => $newStatus
-            ];
-
-        } catch (Exception $e) {
-            $this->conn->rollBack();
-            return [
-                'success' => false,
-                'message' => 'Error during review: ' . $e->getMessage()
-            ];
-        }
+ * ✅ Review (approve/reject) an agent and send email notification
+ */
+public function reviewAgent($agent_id, $reviewer_id, $action, $comment = null) {
+    if (!in_array($action, ['approved', 'rejected'])) {
+        return ['success' => false, 'message' => 'Invalid action'];
     }
+
+    // Record the review
+    $query = "INSERT INTO agent_reviews (agent_id, reviewer_id, action, comment)
+              VALUES (:agent_id, :reviewer_id, :action, :comment)";
+    $stmt = $this->conn->prepare($query);
+    $stmt->bindParam(':agent_id', $agent_id);
+    $stmt->bindParam(':reviewer_id', $reviewer_id);
+    $stmt->bindParam(':action', $action);
+    $stmt->bindParam(':comment', $comment);
+    $stmt->execute();
+
+    // Update main agent record
+    $newStatus = ($action === 'approved') ? 'verified' : 'rejected';
+    $newStage = ($action === 'approved') ? 'completed' : 'documents_rejected';
+
+    $agent = new Agent($this->conn);
+    $agent->updateStatus($agent_id, $newStatus);
+    $agent->updateStage($agent_id, $newStage);
+
+    // 🔹 Get agent email + name
+    $stmt = $this->conn->prepare("SELECT email, full_name FROM agents WHERE id = :id LIMIT 1");
+    $stmt->execute([':id' => $agent_id]);
+    $agentData = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    // 🔹 Get ID number from profile (if exists)
+    $stmt = $this->conn->prepare("SELECT id_number FROM agent_profiles WHERE agent_id = :id LIMIT 1");
+    $stmt->execute([':id' => $agent_id]);
+    $profile = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($profile) {
+        $agentData['id_number'] = $profile['id_number'];
+    }
+
+    // ✅ Send email only if email exists
+    if (!empty($agentData) && !empty($agentData['email'])) {
+        $this->sendReviewEmail($agentData, $newStatus, $comment);
+    } else {
+        error_log("⚠️ Skipped email: No agent email found for ID {$agent_id}");
+    }
+
+    return [
+        'success' => true,
+        'message' => "Agent {$action} and notified via email (if available)",
+        'status' => $newStatus
+    ];
+}
+
+
+/**
+ * ✉️ Send email notification to agent after review
+ */
+private function sendReviewEmail($agentData, $status, $comment = null) {
+    require_once __DIR__ . '/../config/mailer.php';
+
+    $to = trim($agentData['email']);
+    $name = $agentData['full_name'] ?? 'Agent';
+    $idNumber = $agentData['id_number'] ?? 'N/A';
+
+    // 🚀 Load app URL from env (defaults to localhost)
+    $baseUrl = getEnvValue('APP_BASE_URL', 'http://localhost:3000');
+    $loginUrl = rtrim($baseUrl, '/') . '/agent/login';
+
+    $subject = '';
+    $message = '';
+
+    if ($status === 'verified') {
+        $subject = "🎉 Your Agent Account Has Been Approved!";
+        $message = "
+            <p>Dear <strong>{$name}</strong>,</p>
+            <p>Congratulations! Your agent account has been <strong>approved</strong> and verified successfully.</p>
+            <p>You can now log in to your dashboard using the following credentials:</p>
+            <ul>
+                <li><strong>Username:</strong> {$name}</li>
+                <li><strong>Password:</strong> Your Personal ID Number ({$idNumber})</li>
+            </ul>
+            <p><a href='{$loginUrl}' style='color:#1a73e8'>Click here to log in</a>.</p>
+            <p>Welcome aboard!</p>
+            <p>– The Evolve Payroll Team</p>
+        ";
+    } else {
+        $subject = "❌ Your Agent Application Was Not Approved";
+        $message = "
+            <p>Dear <strong>{$name}</strong>,</p>
+            <p>We regret to inform you that your agent application was <strong>not approved</strong> at this time.</p>
+            <p>Reason: " . ($comment ?: "No specific reason provided.") . "</p>
+            <p>You may update and resubmit your documents after reviewing the feedback.</p>
+            <p>– The Evolve Payroll Team</p>
+        ";
+    }
+
+    // 📨 Send via PHPMailer
+    $mail = getMailer();
+    $mail->isHTML(true);
+    $mail->Subject = $subject;
+    $mail->Body = $message;
+
+    try {
+        if (!empty($to)) {
+            $mail->addAddress($to, $name);
+            $mail->send();
+        } else {
+            error_log("⚠️ Email not sent: Missing recipient address for agent {$name}");
+        }
+    } catch (Exception $e) {
+        error_log("❌ Email sending failed for {$to}: " . $e->getMessage());
+    }
+}
+
+
+
+
 
 
 }

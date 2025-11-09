@@ -15,6 +15,7 @@ import {
   Fade,
   Divider,
   Chip,
+  Grid,
 } from "@mui/material";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -27,7 +28,7 @@ export default function AdminAgentDetail() {
   const [open, setOpen] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState(null);
 
-  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const BASE_URL = import.meta.env.VITE_API_BASE_LINK;
 
   useEffect(() => {
     load();
@@ -79,8 +80,8 @@ export default function AdminAgentDetail() {
         ← Back
       </Button>
 
-      {/* Agent Summary */}
-      <Paper sx={{ p: 3, mb: 3 }}>
+      {/* Top Summary */}
+      <Paper sx={{ p: 3, mb: 3, backgroundColor: "#e3f2fd" }}>
         <Typography variant="h5" fontWeight={600}>
           {agent.full_name}
         </Typography>
@@ -88,32 +89,73 @@ export default function AdminAgentDetail() {
         <Typography sx={{ mt: 1 }}>📞 {agent.phone}</Typography>
 
         <Divider sx={{ my: 2 }} />
-        <Box display="flex" gap={2} alignItems="center">
-          <Chip label={`Stage: ${agent.onboarding_stage}`} color="info" />
-          <Chip
-            label={`Status: ${agent.status}`}
-            color={
-              agent.status === "verified"
-                ? "success"
-                : agent.status === "rejected"
-                ? "error"
-                : "warning"
-            }
-          />
+        <Grid container spacing={2}>
+          <Grid item>
+            <Chip label={`Stage: ${agent.onboarding_stage}`} color="info" />
+          </Grid>
+          <Grid item>
+            <Chip
+              label={`Status: ${agent.status}`}
+              color={
+                agent.status === "verified"
+                  ? "success"
+                  : agent.status === "rejected"
+                  ? "error"
+                  : "warning"
+              }
+            />
+          </Grid>
+        </Grid>
+
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            Registered on: {new Date(agent.created_at).toLocaleDateString()}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Last Updated: {new Date(agent.updated_at).toLocaleDateString()}
+          </Typography>
         </Box>
       </Paper>
 
-      {/* Profile */}
-      <Paper sx={{ p: 3, mb: 3 }}>
+      {/* Quick Summary Section */}
+      <Paper sx={{ p: 3, mb: 3, backgroundColor: "#f5f9ff" }}>
         <Typography variant="h6" mb={1}>
+          Agent Summary
+        </Typography>
+        <Typography>✅ Documents Uploaded: {documents.length}</Typography>
+        <Typography>
+          🎓 Education: {profile?.university_name || "N/A"} —{" "}
+          {profile?.education_level || "N/A"}
+        </Typography>
+        <Typography>
+          📅 Last Review:{" "}
+          {reviews.length
+            ? new Date(reviews[0].created_at).toLocaleString()
+            : "No reviews yet"}
+        </Typography>
+      </Paper>
+
+      {/* Profile Details */}
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" mb={2}>
           Profile Details
         </Typography>
         {profile ? (
-          <Box sx={{ color: "text.secondary", lineHeight: 1.8 }}>
-            <p><strong>ID Number:</strong> {profile.id_number}</p>
-            <p><strong>Address:</strong> {profile.address}</p>
-            <p><strong>Gender:</strong> {profile.gender}</p>
-          </Box>
+          <Grid container spacing={2} sx={{ color: "text.secondary" }}>
+            <Grid item xs={12} sm={6}>
+              <p><strong>ID Number:</strong> {profile.id_number}</p>
+              <p><strong>Date of Birth:</strong> {profile.date_of_birth}</p>
+              <p><strong>Gender:</strong> {profile.gender}</p>
+              <p><strong>Address:</strong> {profile.address}</p>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <p><strong>Education Level:</strong> {profile.education_level}</p>
+              <p><strong>University Name:</strong> {profile.university_name}</p>
+              <p><strong>University Email:</strong> {profile.university_email}</p>
+              <p><strong>University ID:</strong> {profile.university_id}</p>
+              <p><strong>Referred By:</strong> {profile.referred_by}</p>
+            </Grid>
+          </Grid>
         ) : (
           <Typography>No profile data available.</Typography>
         )}
@@ -121,7 +163,7 @@ export default function AdminAgentDetail() {
 
       {/* Documents */}
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" mb={1}>
+        <Typography variant="h6" mb={2}>
           Uploaded Documents
         </Typography>
         {documents.length ? (
@@ -137,7 +179,14 @@ export default function AdminAgentDetail() {
                 "&:last-child": { borderBottom: "none" },
               }}
             >
-              <Typography>{d.doc_type.toUpperCase()}</Typography>
+              <Box>
+                <Typography fontWeight={500}>
+                  {d.label || d.doc_type.toUpperCase()}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Uploaded: {new Date(d.uploaded_at).toLocaleString()}
+                </Typography>
+              </Box>
               <Box display="flex" gap={1} alignItems="center">
                 <Chip
                   label={d.status}
@@ -167,7 +216,7 @@ export default function AdminAgentDetail() {
 
       {/* Review Section */}
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" mb={1}>
+        <Typography variant="h6" mb={2}>
           Review Action
         </Typography>
         <TextField
@@ -199,7 +248,7 @@ export default function AdminAgentDetail() {
 
       {/* Review History */}
       <Paper sx={{ p: 3 }}>
-        <Typography variant="h6" mb={1}>
+        <Typography variant="h6" mb={2}>
           Review History
         </Typography>
         {reviews.length ? (
@@ -249,7 +298,7 @@ export default function AdminAgentDetail() {
             {selectedDoc && (
               <>
                 <Typography variant="h6" mb={2}>
-                  {selectedDoc.doc_type.toUpperCase()}
+                  {selectedDoc.label || selectedDoc.doc_type.toUpperCase()}
                 </Typography>
                 {selectedDoc.file_path.match(/\.(pdf)$/i) ? (
                   <iframe

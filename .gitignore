@@ -3,6 +3,7 @@ nul
 # Backend (PHP)
 backend/config/database.php
 backend/vendor/
+backend/env
 backend/composer.lock
 uploads/
 *.log
