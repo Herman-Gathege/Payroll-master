@@ -74,7 +74,6 @@ const employeePortalMenuItem = [
 ];
 
 const agentManagementMenuItems = [
-  { text: "Agent Dashboard", icon: <Dashboard />, path: "/agent/dashboard" },
   { text: "Agent List", icon: <People />, path: "/employer/agents" },
 ];
 

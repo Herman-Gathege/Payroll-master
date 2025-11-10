@@ -61,9 +61,39 @@ export default function AgentLayout() {
           color: "white",
         }}
       >
-        <Typography variant="h6" noWrap sx={{ fontWeight: 600 }}>
-          Agent Panel
-        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Box
+            sx={{
+              width: 60,
+              height: 60,
+              borderRadius: "50%",
+              background: "white",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "10px",
+              boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
+            }}
+          >
+            <img
+              src="/src/assets/lixnet2.png"
+              alt="Lixnet Logo"
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+              }}
+            />
+          </Box>
+          <Typography
+            variant="h5"
+            noWrap
+            component="div"
+            sx={{ fontWeight: 700, letterSpacing: 1 }}
+          >
+            Evolve
+          </Typography>
+        </Box>
       </Toolbar>
 
       <Divider />
