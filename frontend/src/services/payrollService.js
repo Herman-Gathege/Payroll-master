@@ -1,4 +1,7 @@
-import api from './api'
+import axios from 'axios'
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+const PAYROLL_API = `${API_BASE_URL}/payroll.php`
 
 /**
  * Payroll Service

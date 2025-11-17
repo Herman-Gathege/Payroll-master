@@ -1,46 +1,14 @@
+// src/services/authService.js
 import api from './api'
 
 export const authService = {
   // Unified login - handles both employer and employee
   login: async (username, password) => {
-    console.log('[authService.login] Starting unified login request')
-    console.log('[authService.login] Username:', username)
-    console.log('[authService.login] Password length:', password?.length)
-    console.log('[authService.login] API endpoint: /unified_auth.php')
-
-    try {
-      const response = await api.post('/unified_auth.php', { username, password })
-      console.log('[authService.login] Response received:', response)
-      console.log('[authService.login] Response data:', response.data)
-      return response.data
-    } catch (error) {
-      console.error('[authService.login] Error occurred:', error)
-      console.error('[authService.login] Error response:', error.response)
-      console.error('[authService.login] Error response data:', error.response?.data)
-      throw error
-    }
+    const response = await api.post('/auth/login', { username, password })
+    return response.data
   },
 
-  // Employer login (backward compatibility)
-  employerLogin: async (username, password) => {
-    console.log('[authService.employerLogin] Using unified login endpoint')
-    return await authService.login(username, password)
-  },
-
-  // Employee login (backward compatibility)
-  employeeLogin: async (username, password) => {
-    console.log('[authService.employeeLogin] Using unified login endpoint')
-    return await authService.login(username, password)
-  },
-
-  // Logout
-  logout: async (userType) => {
-    const endpoint = userType === 'employer' ? '/employer/auth.php?action=logout' : '/employee/auth.php?action=logout'
-    try {
-      await api.post(endpoint)
-    } catch (error) {
-      console.error('Logout error:', error)
-    }
+  logout: () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     localStorage.removeItem('userType')
@@ -80,4 +48,3 @@ export const authService = {
     return localStorage.getItem('forcePasswordChange') === 'true'
   }
 }
-

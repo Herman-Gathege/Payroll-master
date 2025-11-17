@@ -2,6 +2,7 @@ nul
 
 # Backend (PHP)
 backend/vendor/
+backend/env
 backend/composer.lock
 uploads/
 *.log
@@ -67,14 +68,3 @@ Thumbs.db
 tmp/
 temp/
 *.tmp
-
-# Deployment packaging
-ready-to-upload/
-payroll-system.zip
-
-# Documentation files
-*.md
-!README.md
-
-# Test files
-test_*

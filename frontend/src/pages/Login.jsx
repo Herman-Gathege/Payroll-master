@@ -12,7 +12,6 @@ import {
 } from '@mui/material'
 import { Visibility, VisibilityOff } from '@mui/icons-material'
 import { useAuth } from '../contexts/AuthContext'
-import lixnetLogo from '../assets/lixnet3.png'
 
 export default function Login() {
   const [username, setUsername] = useState('')
@@ -60,47 +59,18 @@ export default function Login() {
   }
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#ffffff',
-      }}
-    >
-      <Container component="main" maxWidth="xs" sx={{ maxWidth: '360px' }}>
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-          }}
-        >
-          {/* Logo */}
-          <Box
-            component="img"
-            src={lixnetLogo}
-            alt="Lixnet Logo"
-            sx={{
-              width: 140,
-              height: 'auto',
-              mb: 2,
-              objectFit: 'contain'
-            }}
-          />
-
-          {/* System Title */}
-          <Typography
-            variant="h6"
-            sx={{
-              mb: 3,
-              color: '#1976d2',
-              fontWeight: 600,
-              textAlign: 'center'
-            }}
-          >
-            Evolve Payroll and HR Management System
+    <Container component="main" maxWidth="xs">
+      <Box
+        sx={{
+          marginTop: 8,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+        }}
+      >
+        <Paper elevation={3} sx={{ p: 4, width: '100%' }}>
+          <Typography component="h1" variant="h4" align="center" gutterBottom>
+            HR Management System
           </Typography>
 
           <Typography
