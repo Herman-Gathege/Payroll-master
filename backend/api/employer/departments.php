@@ -2,6 +2,7 @@
 /**
  * Departments API
  * Handles department CRUD operations
+ * backend/api/employer/departments.php
  */
 
 require_once '../../config/database_secure.php';

@@ -2,6 +2,7 @@
 /**
  * Positions API
  * Handles position/job title CRUD operations
+ * backend/api/employer/positions.php
  */
 
 require_once '../../config/database_secure.php';
