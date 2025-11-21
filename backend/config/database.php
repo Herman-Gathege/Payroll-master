@@ -2,6 +2,7 @@
 /**
  * Database Configuration
  * Uses environment variables from .env file
+ * backend/config/database.php
  */
 
 require_once __DIR__ . '/env_loader.php';
@@ -17,7 +18,7 @@ class Database {
     public function __construct() {
         // Load from environment variables with fallback to defaults
         $this->host = EnvLoader::get('DB_HOST', 'localhost');
-        $this->database_name = EnvLoader::get('DB_NAME', 'hr_management_system');
+        $this->database_name = EnvLoader::get('DB_NAME', 'evolve_payroll');
         $this->username = EnvLoader::get('DB_USER', 'root');
         $this->password = EnvLoader::get('DB_PASS', '');
         $this->charset = EnvLoader::get('DB_CHARSET', 'utf8mb4');

@@ -1,4 +1,7 @@
 <?php
+
+// backend/models/Attendance.php
+
 class Attendance {
     private $conn;
     private $table_name = "attendance";

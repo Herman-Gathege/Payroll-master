@@ -1,44 +1,55 @@
+// frontend/src/services/api.js
+
 import axios from 'axios'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: API_BASE_URL, 
   headers: {
     'Content-Type': 'application/json',
-  },
-  // withCredentials: true, // Enable cookies for session management
-})
+  }
+});
+
 
 // Request interceptor to add auth token and user type
 api.interceptors.request.use(
   (config) => {
-    console.log('[API Interceptor] Request:', {
-      url: config.url,
-      method: config.method,
-      baseURL: config.baseURL,
-      fullURL: `${config.baseURL}${config.url}`,
-      data: config.data
-    })
+    const userType = localStorage.getItem('userType'); 
+    const token = localStorage.getItem('token');
+    const prefix = userType ? `/${userType}` : '';
 
-    const token = localStorage.getItem('token')
-    const userType = localStorage.getItem('userType')
-
+    // Add Authorization header
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+      config.headers.Authorization = `Bearer ${token}`;
     }
 
-    if (userType) {
-      config.headers['X-User-Type'] = userType
+    // Root endpoints
+    const rootEndpoints = [
+      '/unified_auth.php',
+      '/employees.php',
+      '/leave.php',
+      '/leave_balance.php',
+      '/payroll.php',
+      '/clear_cache.php'
+    ];
+
+    const shouldSkip =
+      rootEndpoints.some(p => config.url.startsWith(p)) ||
+      config.url.startsWith('/employer') ||
+      config.url.startsWith('/employee');
+
+    if (!shouldSkip) {
+      config.url = `${prefix}${config.url}`;
     }
 
-    return config
+    return config;
   },
-  (error) => {
-    console.error('[API Interceptor] Request error:', error)
-    return Promise.reject(error)
-  }
-)
+  (error) => Promise.reject(error)
+);
+
+
+
 
 // Response interceptor for error handling
 api.interceptors.response.use(

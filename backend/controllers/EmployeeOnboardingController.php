@@ -10,6 +10,7 @@
  * - Leave balance initialization
  * - Audit logging
  * - Scalable architecture
+ * backend/controllers/EmployeeOnboardingController.php
  */
 
 require_once '../models/Employee.php';

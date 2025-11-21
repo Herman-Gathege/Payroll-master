@@ -1,235 +1,373 @@
 <?php
 /**
- * Employer Employees API
- * Handles employee CRUD operations for employers
+ * backend/api/employer/employees.php
+ * Final version — matches final_schema.sql
+ *
+ * Supported:
+ *  - GET (list with pagination/search or single ?id=)
+ *  - POST (create)
+ *  - PUT (update)
+ *  - DELETE (soft delete: employment_status = 'Terminated', date_terminated)
+ *
+ * Notes:
+ *  - Uses organization scoping via employer_users.organization_id
+ *  - Employee unique field is employee_no
  */
 
 require_once '../../config/database_secure.php';
 require_once '../../middleware/SecurityMiddleware.php';
 
-// Apply security measures
+// CORS + headers
 SecurityMiddleware::handleCORS();
 SecurityMiddleware::applySecurityHeaders();
+SecurityMiddleware::checkRateLimit('employees', 200, 60);
 
-// Rate limiting
-SecurityMiddleware::checkRateLimit('employees', 100, 60);
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
 
 $database = new Database();
 $db = $database->getConnection();
 
-$request_method = $_SERVER["REQUEST_METHOD"];
+// Authenticate
+try {
+    $session = SecurityMiddleware::verifyToken();
+} catch (Exception $e) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'message' => 'Authentication required']);
+    exit();
+}
 
-// Verify authentication
-$session = SecurityMiddleware::verifyToken();
-$user_id = $session['user_id'];
-$user_type = $session['user_type'];
+$user_id = $session['user_id'] ?? null;
+$user_type = $session['user_type'] ?? null;
 
-// Only employers can access
 if ($user_type !== 'employer') {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Access denied']);
     exit();
 }
 
-/**
- * GET - List all employees
- */
-if ($request_method === 'GET') {
-    try {
-        // Get employer's organization
-        $org_query = "SELECT organization_id FROM employer_users WHERE id = :user_id";
-        $org_stmt = $db->prepare($org_query);
-        $org_stmt->execute([':user_id' => $user_id]);
-        $org_data = $org_stmt->fetch(PDO::FETCH_ASSOC);
+$method = $_SERVER['REQUEST_METHOD'];
 
-        if (!$org_data) {
-            http_response_code(404);
-            echo json_encode(['success' => false, 'message' => 'Organization not found']);
-            exit();
-        }
+try {
+    // resolve organization id
+    $org_stmt = $db->prepare("SELECT organization_id FROM employer_users WHERE id = :user_id LIMIT 1");
+    $org_stmt->execute([':user_id' => $user_id]);
+    $org_data = $org_stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$org_data) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'message' => 'Organization not found']);
+        exit();
+    }
+    $organization_id = (int)$org_data['organization_id'];
 
-        $organization_id = $org_data['organization_id'];
+    // -----------------------------
+    // GET - single or list
+    // -----------------------------
+    if ($method === 'GET') {
+        // single employee by id
+        if (!empty($_GET['id'])) {
+            $id = (int)$_GET['id'];
 
-        // Get query parameters
-        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-        $limit = isset($_GET['limit']) ? min((int)$_GET['limit'], 100) : 50;
-        $offset = ($page - 1) * $limit;
-        $search = isset($_GET['search']) ? $_GET['search'] : '';
-        $status = isset($_GET['status']) ? $_GET['status'] : 'active';
-        $department_id = isset($_GET['department_id']) ? (int)$_GET['department_id'] : null;
-
-        // Build query
-        $where_conditions = ["e.organization_id = :organization_id"];
-        $params = [':organization_id' => $organization_id];
-
-        if ($search) {
-            $where_conditions[] = "(e.first_name LIKE :search OR e.last_name LIKE :search OR e.employee_number LIKE :search OR e.work_email LIKE :search)";
-            $params[':search'] = "%{$search}%";
-        }
-
-        if ($status) {
-            $where_conditions[] = "e.employment_status = :status";
-            $params[':status'] = $status;
-        }
-
-        if ($department_id) {
-            $where_conditions[] = "e.department_id = :department_id";
-            $params[':department_id'] = $department_id;
-        }
-
-        $where_clause = implode(' AND ', $where_conditions);
-
-        // Get total count
-        $count_query = "SELECT COUNT(*) as total FROM employees e WHERE {$where_clause}";
-        $count_stmt = $db->prepare($count_query);
-        $count_stmt->execute($params);
-        $total = $count_stmt->fetch(PDO::FETCH_ASSOC)['total'];
-
-        // Get employees
-        $query = "SELECT
-                    e.id, e.employee_number, e.first_name, e.middle_name, e.last_name,
-                    e.date_of_birth, e.gender, e.phone_number, e.work_email,
-                    e.employment_status, e.date_hired, e.date_terminated,
-                    e.profile_photo, e.created_at,
-                    d.name as department_name, d.id as department_id,
-                    p.title as position_title, p.id as position_id,
-                    bc.name as bank_name, e.bank_account_number
+            $q = "SELECT
+                    e.id,
+                    e.employee_no,
+                    e.first_name,
+                    e.middle_name,
+                    e.last_name,
+                    CONCAT(e.first_name, ' ', COALESCE(e.middle_name, ''), ' ', e.last_name) AS full_name,
+                    e.id_number,
+                    e.kra_pin,
+                    e.nssf_no,
+                    e.nhif_no,
+                    e.shif_number,
+                    e.phone,
+                    e.personal_email,
+                    e.work_email,
+                    e.date_of_birth,
+                    e.gender,
+                    e.marital_status,
+                    e.nationality,
+                    e.passport_number,
+                    e.department_id,
+                    d.name AS department_name,
+                    e.position_id,
+                    p.title AS position_title,
+                    e.manager_id,
+                    CONCAT(m.first_name, ' ', COALESCE(m.middle_name, ''), ' ', m.last_name) AS manager_name,
+                    e.employment_type,
+                    e.employment_status,
+                    e.basic_salary,
+                    e.currency,
+                    e.hire_date,
+                    e.probation_end_date,
+                    e.contract_end_date,
+                    e.photo,
+                    e.postal_address,
+                    e.residential_address,
+                    e.county,
+                    e.sub_county,
+                    e.created_at,
+                    e.updated_at
                   FROM employees e
                   LEFT JOIN departments d ON e.department_id = d.id
                   LEFT JOIN positions p ON e.position_id = p.id
-                  LEFT JOIN bank_codes bc ON e.bank_code_id = bc.id
-                  WHERE {$where_clause}
-                  ORDER BY e.created_at DESC
-                  LIMIT :limit OFFSET :offset";
+                  LEFT JOIN employees m ON e.manager_id = m.id
+                  WHERE e.id = :id AND e.organization_id = :org_id
+                  LIMIT 1";
 
-        $stmt = $db->prepare($query);
-        foreach ($params as $key => $value) {
-            $stmt->bindValue($key, $value);
+            $stmt = $db->prepare($q);
+            $stmt->execute([':id' => $id, ':org_id' => $organization_id]);
+            $emp = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$emp) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Employee not found']);
+                exit();
+            }
+
+            echo json_encode(['success' => true, 'data' => $emp]);
+            exit();
         }
-        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+
+        // list with pagination & search
+        $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+        $limit = isset($_GET['limit']) ? min(200, (int)$_GET['limit']) : 50;
+        $offset = ($page - 1) * $limit;
+        $search = isset($_GET['search']) ? trim($_GET['search']) : '';
+        $status = isset($_GET['status']) ? trim($_GET['status']) : null;
+        $department_id = isset($_GET['department_id']) ? (int)$_GET['department_id'] : null;
+        $position_id = isset($_GET['position_id']) ? (int)$_GET['position_id'] : null;
+
+        $where = ["e.organization_id = :organization_id"];
+        $params = [':organization_id' => $organization_id];
+
+        if ($search !== '') {
+            $where[] = "(e.first_name LIKE :search OR e.middle_name LIKE :search OR e.last_name LIKE :search OR e.employee_no LIKE :search OR e.work_email LIKE :search OR e.phone LIKE :search)";
+            $params[':search'] = "%{$search}%";
+        }
+        if ($status) {
+            // Accept case-insensitive values: normalize first letter upper for schema (Active)
+            $params[':status'] = ucfirst(strtolower($status));
+            $where[] = "e.employment_status = :status";
+        }
+        if ($department_id) {
+            $where[] = "e.department_id = :department_id";
+            $params[':department_id'] = $department_id;
+        }
+        if ($position_id) {
+            $where[] = "e.position_id = :position_id";
+            $params[':position_id'] = $position_id;
+        }
+
+        $where_clause = implode(' AND ', $where);
+
+        $count_q = "SELECT COUNT(*) as total FROM employees e WHERE {$where_clause}";
+        $count_stmt = $db->prepare($count_q);
+        $count_stmt->execute($params);
+        $total = (int)$count_stmt->fetch(PDO::FETCH_ASSOC)['total'];
+
+        $q = "SELECT
+                e.id,
+                e.employee_no,
+                e.first_name,
+                e.middle_name,
+                e.last_name,
+                CONCAT(e.first_name, ' ', COALESCE(e.middle_name, ''), ' ', e.last_name) AS full_name,
+                e.phone,
+                e.work_email,
+                e.personal_email,
+                e.employment_status,
+                e.employment_type,
+                e.basic_salary,
+                e.currency,
+                e.hire_date,
+                e.department_id,
+                d.name AS department_name,
+                e.position_id,
+                p.title AS position_title,
+                e.manager_id,
+                CONCAT(m.first_name, ' ', COALESCE(m.middle_name, ''), ' ', m.last_name) AS manager_name,
+                e.photo,
+                e.created_at
+              FROM employees e
+              LEFT JOIN departments d ON e.department_id = d.id
+              LEFT JOIN positions p ON e.position_id = p.id
+              LEFT JOIN employees m ON e.manager_id = m.id
+              WHERE {$where_clause}
+              ORDER BY e.created_at DESC
+              LIMIT :limit OFFSET :offset";
+
+        $stmt = $db->prepare($q);
+        // bind dynamic params
+        foreach ($params as $k => $v) {
+            $stmt->bindValue($k, $v);
+        }
+        $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
         $stmt->execute();
 
         $employees = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Format data
-        foreach ($employees as &$employee) {
-            $employee['full_name'] = trim($employee['first_name'] . ' ' . ($employee['middle_name'] ? $employee['middle_name'] . ' ' : '') . $employee['last_name']);
-        }
-
-        http_response_code(200);
         echo json_encode([
             'success' => true,
             'data' => $employees,
             'pagination' => [
-                'total' => (int)$total,
+                'total' => $total,
                 'page' => $page,
                 'limit' => $limit,
-                'pages' => ceil($total / $limit)
+                'pages' => $limit ? (int)ceil($total / $limit) : 0
             ]
         ]);
-
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode([
-            'success' => false,
-            'message' => 'Failed to fetch employees',
-            'error' => Database::getConfig('app.debug') ? $e->getMessage() : 'Database error'
-        ]);
+        exit();
     }
-}
 
-/**
- * POST - Create new employee
- */
-elseif ($request_method === 'POST') {
-    try {
+    // -----------------------------
+    // POST - create employee
+    // -----------------------------
+    if ($method === 'POST') {
         $data = json_decode(file_get_contents("php://input"));
+        if (!is_object($data)) $data = json_decode('{}');
 
-        // Validate required fields
-        $required = ['employee_number', 'first_name', 'last_name', 'date_of_birth', 'gender', 'phone_number', 'work_email', 'date_hired', 'department_id', 'position_id'];
-        SecurityMiddleware::validateRequired((array)$data, $required);
-
-        // Validate email
-        if (!SecurityMiddleware::validateEmail($data->work_email)) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'Invalid email address']);
-            exit();
+        // Required fields (based on your schema)
+        $required = ['employee_no', 'first_name', 'last_name', 'date_of_birth', 'gender', 'phone', 'work_email', 'hire_date', 'department_id', 'position_id'];
+        foreach ($required as $r) {
+            if (empty($data->$r)) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => "$r is required"]);
+                exit();
+            }
         }
 
-        // Get employer's organization
-        $org_query = "SELECT organization_id FROM employer_users WHERE id = :user_id";
-        $org_stmt = $db->prepare($org_query);
-        $org_stmt->execute([':user_id' => $user_id]);
-        $org_data = $org_stmt->fetch(PDO::FETCH_ASSOC);
-        $organization_id = $org_data['organization_id'];
-
-        // Check if employee number exists
-        $check_query = "SELECT id FROM employees WHERE employee_number = :emp_num AND organization_id = :org_id";
-        $check_stmt = $db->prepare($check_query);
-        $check_stmt->execute([':emp_num' => $data->employee_number, ':org_id' => $organization_id]);
-        if ($check_stmt->fetch()) {
+        // validate duplicate employee_no
+        $check = $db->prepare("SELECT id FROM employees WHERE employee_no = :emp_no AND organization_id = :org_id");
+        $check->execute([':emp_no' => $data->employee_no, ':org_id' => $organization_id]);
+        if ($check->fetch()) {
             http_response_code(409);
             echo json_encode(['success' => false, 'message' => 'Employee number already exists']);
             exit();
         }
 
-        // Insert employee
-        $insert_query = "INSERT INTO employees (
-            organization_id, employee_number, first_name, middle_name, last_name,
-            date_of_birth, gender, phone_number, work_email, personal_email,
-            id_number, kra_pin, nssf_number, nhif_number,
-            department_id, position_id, employment_status, date_hired,
-            salary, allowances, created_at
-        ) VALUES (
-            :organization_id, :employee_number, :first_name, :middle_name, :last_name,
-            :date_of_birth, :gender, :phone_number, :work_email, :personal_email,
-            :id_number, :kra_pin, :nssf_number, :nhif_number,
-            :department_id, :position_id, 'active', :date_hired,
-            :salary, :allowances, NOW()
-        )";
+        $insert = $db->prepare("
+            INSERT INTO employees (
+                organization_id,
+                employee_no,
+                first_name,
+                middle_name,
+                last_name,
+                id_number,
+                kra_pin,
+                nssf_no,
+                nhif_no,
+                shif_number,
+                phone,
+                personal_email,
+                work_email,
+                date_of_birth,
+                gender,
+                marital_status,
+                nationality,
+                passport_number,
+                department_id,
+                position_id,
+                manager_id,
+                employment_type,
+                employment_status,
+                basic_salary,
+                currency,
+                hire_date,
+                probation_end_date,
+                contract_end_date,
+                photo,
+                postal_address,
+                residential_address,
+                county,
+                sub_county,
+                created_at
+            ) VALUES (
+                :organization_id,
+                :employee_no,
+                :first_name,
+                :middle_name,
+                :last_name,
+                :id_number,
+                :kra_pin,
+                :nssf_no,
+                :nhif_no,
+                :shif_number,
+                :phone,
+                :personal_email,
+                :work_email,
+                :date_of_birth,
+                :gender,
+                :marital_status,
+                :nationality,
+                :passport_number,
+                :department_id,
+                :position_id,
+                :manager_id,
+                :employment_type,
+                :employment_status,
+                :basic_salary,
+                :currency,
+                :hire_date,
+                :probation_end_date,
+                :contract_end_date,
+                :photo,
+                :postal_address,
+                :residential_address,
+                :county,
+                :sub_county,
+                NOW()
+            )
+        ");
 
-        $insert_stmt = $db->prepare($insert_query);
-        $insert_stmt->execute([
+        $insert->execute([
             ':organization_id' => $organization_id,
-            ':employee_number' => $data->employee_number,
+            ':employee_no' => $data->employee_no,
             ':first_name' => $data->first_name,
             ':middle_name' => $data->middle_name ?? null,
             ':last_name' => $data->last_name,
-            ':date_of_birth' => $data->date_of_birth,
-            ':gender' => $data->gender,
-            ':phone_number' => $data->phone_number,
-            ':work_email' => $data->work_email,
-            ':personal_email' => $data->personal_email ?? null,
             ':id_number' => $data->id_number ?? null,
             ':kra_pin' => $data->kra_pin ?? null,
-            ':nssf_number' => $data->nssf_number ?? null,
-            ':nhif_number' => $data->nhif_number ?? null,
+            ':nssf_no' => $data->nssf_no ?? null,
+            ':nhif_no' => $data->nhif_no ?? null,
+            ':shif_number' => $data->shif_number ?? null,
+            ':phone' => $data->phone,
+            ':personal_email' => $data->personal_email ?? null,
+            ':work_email' => $data->work_email,
+            ':date_of_birth' => $data->date_of_birth,
+            ':gender' => $data->gender,
+            ':marital_status' => $data->marital_status ?? null,
+            ':nationality' => $data->nationality ?? 'Kenyan',
+            ':passport_number' => $data->passport_number ?? null,
             ':department_id' => $data->department_id,
             ':position_id' => $data->position_id,
-            ':date_hired' => $data->date_hired,
-            ':salary' => $data->salary ?? 0,
-            ':allowances' => isset($data->allowances) ? json_encode($data->allowances) : null
+            ':manager_id' => $data->manager_id ?? null,
+            ':employment_type' => $data->employment_type ?? 'Permanent',
+            ':employment_status' => $data->employment_status ?? 'Active',
+            ':basic_salary' => isset($data->basic_salary) ? $data->basic_salary : 0.00,
+            ':currency' => $data->currency ?? 'KES',
+            ':hire_date' => $data->hire_date,
+            ':probation_end_date' => $data->probation_end_date ?? null,
+            ':contract_end_date' => $data->contract_end_date ?? null,
+            ':photo' => $data->photo ?? null,
+            ':postal_address' => $data->postal_address ?? null,
+            ':residential_address' => $data->residential_address ?? null,
+            ':county' => $data->county ?? null,
+            ':sub_county' => $data->sub_county ?? null
         ]);
 
         $employee_id = $db->lastInsertId();
 
-        // Create employee user account if requested
-        if (isset($data->create_user_account) && $data->create_user_account) {
-            $username = strtolower(str_replace(' ', '.', $data->first_name . '.' . $data->last_name));
+        // optionally create employee user
+        if (!empty($data->create_user_account)) {
+            $username = strtolower(preg_replace('/\s+/', '.', trim($data->first_name . '.' . $data->last_name)));
             $default_password = 'Welcome@' . date('Y');
             $password_hash = password_hash($default_password, PASSWORD_BCRYPT);
-
-            $user_query = "INSERT INTO employee_users (
-                employee_id, username, email, password_hash,
-                is_active, force_password_change, created_at
-            ) VALUES (
-                :employee_id, :username, :email, :password_hash,
-                1, 1, NOW()
-            )";
-
-            $user_stmt = $db->prepare($user_query);
-            $user_stmt->execute([
+            $user_q = $db->prepare("INSERT INTO employee_users (employee_id, username, email, password_hash, role, is_active, force_password_change, created_at) VALUES (:employee_id, :username, :email, :password_hash, 'employee', 1, 1, NOW())");
+            $user_q->execute([
                 ':employee_id' => $employee_id,
                 ':username' => $username,
                 ':email' => $data->work_email,
@@ -238,163 +376,104 @@ elseif ($request_method === 'POST') {
         }
 
         http_response_code(201);
-        echo json_encode([
-            'success' => true,
-            'message' => 'Employee created successfully',
-            'data' => [
-                'id' => $employee_id,
-                'employee_number' => $data->employee_number
-            ]
-        ]);
-
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode([
-            'success' => false,
-            'message' => 'Failed to create employee',
-            'error' => Database::getConfig('app.debug') ? $e->getMessage() : 'Database error'
-        ]);
+        echo json_encode(['success' => true, 'message' => 'Employee created successfully', 'data' => ['id' => $employee_id, 'employee_no' => $data->employee_no]]);
+        exit();
     }
-}
 
-/**
- * PUT - Update employee
- */
-elseif ($request_method === 'PUT') {
-    try {
+    // -----------------------------
+    // PUT - update employee
+    // -----------------------------
+    if ($method === 'PUT') {
         $data = json_decode(file_get_contents("php://input"));
-
-        if (!isset($data->id)) {
+        if (empty($data->id)) {
             http_response_code(400);
             echo json_encode(['success' => false, 'message' => 'Employee ID required']);
             exit();
         }
+        $employee_id = (int)$data->id;
 
-        // Get employer's organization
-        $org_query = "SELECT organization_id FROM employer_users WHERE id = :user_id";
-        $org_stmt = $db->prepare($org_query);
-        $org_stmt->execute([':user_id' => $user_id]);
-        $org_data = $org_stmt->fetch(PDO::FETCH_ASSOC);
-        $organization_id = $org_data['organization_id'];
-
-        // Verify employee belongs to organization
-        $check_query = "SELECT id FROM employees WHERE id = :id AND organization_id = :org_id";
-        $check_stmt = $db->prepare($check_query);
-        $check_stmt->execute([':id' => $data->id, ':org_id' => $organization_id]);
-        if (!$check_stmt->fetch()) {
+        $check = $db->prepare("SELECT id FROM employees WHERE id = :id AND organization_id = :org_id");
+        $check->execute([':id' => $employee_id, ':org_id' => $organization_id]);
+        if (!$check->fetch()) {
             http_response_code(404);
             echo json_encode(['success' => false, 'message' => 'Employee not found']);
             exit();
         }
 
-        // Build update query dynamically
-        $updates = [];
-        $params = [':id' => $data->id];
-
-        $updatable_fields = [
-            'first_name', 'middle_name', 'last_name', 'date_of_birth', 'gender',
-            'phone_number', 'work_email', 'personal_email', 'id_number',
-            'kra_pin', 'nssf_number', 'nhif_number', 'department_id', 'position_id',
-            'employment_status', 'date_hired', 'date_terminated', 'salary'
+        $updatable = [
+            'first_name','middle_name','last_name','id_number','kra_pin','nssf_no','nhif_no','shif_number',
+            'phone','personal_email','work_email','date_of_birth','gender','marital_status','nationality',
+            'passport_number','department_id','position_id','manager_id','employment_type','employment_status',
+            'basic_salary','currency','hire_date','probation_end_date','contract_end_date','photo',
+            'postal_address','residential_address','county','sub_county'
         ];
 
-        foreach ($updatable_fields as $field) {
-            if (isset($data->$field)) {
-                $updates[] = "$field = :$field";
-                $params[":$field"] = $data->$field;
+        $sets = [];
+        $params = [':id' => $employee_id];
+
+        foreach ($updatable as $f) {
+            if (isset($data->$f)) {
+                $sets[] = "$f = :$f";
+                $params[":$f"] = $data->$f;
             }
         }
 
-        if (empty($updates)) {
+        if (empty($sets)) {
             http_response_code(400);
             echo json_encode(['success' => false, 'message' => 'No fields to update']);
             exit();
         }
 
-        $updates[] = "updated_at = NOW()";
-        $update_query = "UPDATE employees SET " . implode(', ', $updates) . " WHERE id = :id";
+        $sets[] = "updated_at = NOW()";
+        $sql = "UPDATE employees SET " . implode(', ', $sets) . " WHERE id = :id AND organization_id = :org_id";
+        $params[':org_id'] = $organization_id;
 
-        $stmt = $db->prepare($update_query);
+        $stmt = $db->prepare($sql);
         $stmt->execute($params);
 
-        http_response_code(200);
-        echo json_encode([
-            'success' => true,
-            'message' => 'Employee updated successfully'
-        ]);
-
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode([
-            'success' => false,
-            'message' => 'Failed to update employee',
-            'error' => Database::getConfig('app.debug') ? $e->getMessage() : 'Database error'
-        ]);
+        echo json_encode(['success' => true, 'message' => 'Employee updated successfully']);
+        exit();
     }
-}
 
-/**
- * DELETE - Soft delete employee
- */
-elseif ($request_method === 'DELETE') {
-    try {
+    // -----------------------------
+    // DELETE - soft delete employee (terminate)
+    // -----------------------------
+    if ($method === 'DELETE') {
         $employee_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-
         if (!$employee_id) {
             http_response_code(400);
             echo json_encode(['success' => false, 'message' => 'Employee ID required']);
             exit();
         }
 
-        // Get employer's organization
-        $org_query = "SELECT organization_id FROM employer_users WHERE id = :user_id";
-        $org_stmt = $db->prepare($org_query);
-        $org_stmt->execute([':user_id' => $user_id]);
-        $org_data = $org_stmt->fetch(PDO::FETCH_ASSOC);
-        $organization_id = $org_data['organization_id'];
-
-        // Soft delete (set status to terminated)
-        $delete_query = "UPDATE employees
-                        SET employment_status = 'terminated',
-                            date_terminated = NOW(),
-                            updated_at = NOW()
-                        WHERE id = :id AND organization_id = :org_id";
-
-        $stmt = $db->prepare($delete_query);
-        $stmt->execute([':id' => $employee_id, ':org_id' => $organization_id]);
-
-        if ($stmt->rowCount() === 0) {
+        $check = $db->prepare("SELECT id FROM employees WHERE id = :id AND organization_id = :org_id");
+        $check->execute([':id' => $employee_id, ':org_id' => $organization_id]);
+        if (!$check->fetch()) {
             http_response_code(404);
             echo json_encode(['success' => false, 'message' => 'Employee not found']);
             exit();
         }
 
-        // Deactivate user account
-        $user_query = "UPDATE employee_users SET is_active = 0 WHERE employee_id = :employee_id";
-        $user_stmt = $db->prepare($user_query);
-        $user_stmt->execute([':employee_id' => $employee_id]);
+        $del = $db->prepare("UPDATE employees SET employment_status = 'Terminated', contract_end_date = NOW(), updated_at = NOW() WHERE id = :id AND organization_id = :org_id");
+        $del->execute([':id' => $employee_id, ':org_id' => $organization_id]);
 
-        http_response_code(200);
-        echo json_encode([
-            'success' => true,
-            'message' => 'Employee deleted successfully'
-        ]);
+        // deactivate user account
+        $ud = $db->prepare("UPDATE employee_users SET is_active = 0 WHERE employee_id = :employee_id");
+        $ud->execute([':employee_id' => $employee_id]);
 
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode([
-            'success' => false,
-            'message' => 'Failed to delete employee',
-            'error' => Database::getConfig('app.debug') ? $e->getMessage() : 'Database error'
-        ]);
+        echo json_encode(['success' => true, 'message' => 'Employee terminated successfully']);
+        exit();
     }
-}
 
-/**
- * Invalid method
- */
-else {
+    // default
     http_response_code(405);
     echo json_encode(['success' => false, 'message' => 'Method not allowed']);
+    exit();
+
+} catch (PDOException $e) {
+    http_response_code(500);
+    $err = (defined('APP_DEBUG') && APP_DEBUG) ? $e->getMessage() : 'Database error';
+    echo json_encode(['success' => false, 'message' => 'Server error', 'error' => $err]);
+    exit();
 }
 ?>

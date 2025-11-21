@@ -1,4 +1,9 @@
 <?php
+
+/**
+ * backend/controllers/PayrollController.php
+ */
+
 require_once __DIR__ . '/../models/Payroll.php';
 require_once __DIR__ . '/../config/payroll_config.php';
 

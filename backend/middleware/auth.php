@@ -1,4 +1,6 @@
 <?php
+
+// backend/middleware/auth.php
 class AuthMiddleware {
     public static function validateToken() {
         $headers = getallheaders();

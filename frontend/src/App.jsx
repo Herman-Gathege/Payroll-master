@@ -20,6 +20,8 @@ import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import EmployeePortal from './pages/EmployeePortal'
 import Security from './pages/Security'
+import DepartmentsPage from './pages/DepartmentsPage'
+
 
 // Employer route protection
 function EmployerRoute({ children }) {
@@ -69,6 +71,7 @@ function App() {
             </EmployerRoute>
           }
         >
+          <Route path="departments" element={<DepartmentsPage />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="employees" element={<Employees />} />
           <Route path="employees/new" element={<AddEmployee />} />

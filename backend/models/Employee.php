@@ -1,4 +1,7 @@
 <?php
+
+// backend/models/Employee.php
+
 class Employee {
     private $conn;
     private $table_name = "employees";

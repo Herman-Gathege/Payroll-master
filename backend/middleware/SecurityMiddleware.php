@@ -2,6 +2,7 @@
 /**
  * Security Middleware
  * Handles CORS, input sanitization, rate limiting, and security headers
+ * backend/middleware/SecurityMiddleware.php
  */
 
 require_once __DIR__ . '/../config/database_secure.php';

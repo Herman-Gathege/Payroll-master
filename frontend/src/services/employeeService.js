@@ -1,3 +1,5 @@
+// frontend/src/services/employeeService.js
+
 import api from './api'
 
 /**
@@ -137,3 +139,10 @@ export const employeeService = {
   }
 }
 
+export const searchEmployees = (q, limit = 50) =>
+  api.get(`/employees.php?search=${encodeURIComponent(q)}&limit=${limit}`);
+
+export const getEmployees = (params = {}) => {
+  const qs = new URLSearchParams(params).toString();
+  return api.get('/employees.php' + (qs ? `?${qs}` : ''));
+}
