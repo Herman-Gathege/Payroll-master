@@ -2,6 +2,7 @@
 /**
  * Payroll Summary API
  * Provides payroll summary data for dashboard and reports
+ * Path: backend/api/employer/payroll/summary.php
  */
 
 require_once '../../../config/database_secure.php';

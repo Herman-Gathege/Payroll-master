@@ -279,10 +279,81 @@ elseif ($request_method === 'DELETE') {
 }
 
 /**
+ * new functions you have provided me
+ */
+
+/**
+ * ASSIGN EMPLOYEE TO DEPARTMENT
+ * POST departments.php?action=assignEmployee
+ */
+if ($request_method === 'POST' && isset($_GET['action']) && $_GET['action'] === 'assignEmployee') {
+    $data = json_decode(file_get_contents("php://input"));
+
+    if (!empty($data->employee_id) && !empty($data->department_id)) {
+
+        $query = "UPDATE employees SET department_id = :department_id WHERE id = :employee_id";
+        $stmt = $db->prepare($query);
+        $stmt->bindParam(':department_id', $data->department_id);
+        $stmt->bindParam(':employee_id', $data->employee_id);
+
+        if ($stmt->execute()) {
+            echo json_encode([
+                "success" => true,
+                "message" => "Employee assigned to department successfully"
+            ]);
+        } else {
+            echo json_encode([
+                "success" => false,
+                "message" => "Failed to assign employee"
+            ]);
+        }
+    } else {
+        echo json_encode(["success" => false, "message" => "Missing parameters"]);
+    }
+    exit;
+}
+
+
+/**
+ * REMOVE EMPLOYEE FROM DEPARTMENT
+ * POST departments.php?action=removeEmployee
+ */
+if ($request_method === 'POST' && isset($_GET['action']) && $_GET['action'] === 'removeEmployee') {
+    $data = json_decode(file_get_contents("php://input"));
+
+    if (!empty($data->employee_id)) {
+
+        $query = "UPDATE employees SET department_id = NULL WHERE id = :employee_id";
+        $stmt = $db->prepare($query);
+        $stmt->bindParam(':employee_id', $data->employee_id);
+
+        if ($stmt->execute()) {
+            echo json_encode([
+                "success" => true,
+                "message" => "Employee removed from department"
+            ]);
+        } else {
+            echo json_encode([
+                "success" => false,
+                "message" => "Failed to remove employee from department"
+            ]);
+        }
+    } else {
+        echo json_encode(["success" => false, "message" => "Missing employee_id"]);
+    }
+    exit;
+}
+
+/**
  * Invalid method
  */
 else {
     http_response_code(405);
     echo json_encode(['success' => false, 'message' => 'Method not allowed']);
 }
+
+
+
+
+
 ?>

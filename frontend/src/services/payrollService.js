@@ -3,6 +3,7 @@ import api from './api'
 /**
  * Payroll Service
  * Handles all payroll-related API calls with dual authentication support
+ * frontend/src/services/payrollService.js
  */
 class PayrollService {
   /**
