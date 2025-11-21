@@ -1,7 +1,17 @@
 <?php
 /**
  * backend/api/employer/employees.php
- * Rewritten: single-dispatch, organization-scoped employee CRUD + pagination/search.
+ * Final version — matches final_schema.sql
+ *
+ * Supported:
+ *  - GET (list with pagination/search or single ?id=)
+ *  - POST (create)
+ *  - PUT (update)
+ *  - DELETE (soft delete: employment_status = 'Terminated', date_terminated)
+ *
+ * Notes:
+ *  - Uses organization scoping via employer_users.organization_id
+ *  - Employee unique field is employee_no
  */
 
 require_once '../../config/database_secure.php';
@@ -10,7 +20,7 @@ require_once '../../middleware/SecurityMiddleware.php';
 // CORS + headers
 SecurityMiddleware::handleCORS();
 SecurityMiddleware::applySecurityHeaders();
-SecurityMiddleware::checkRateLimit('employees', 100, 60);
+SecurityMiddleware::checkRateLimit('employees', 200, 60);
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
@@ -42,7 +52,7 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 try {
     // resolve organization id
-    $org_stmt = $db->prepare("SELECT organization_id FROM employer_users WHERE id = :user_id");
+    $org_stmt = $db->prepare("SELECT organization_id FROM employer_users WHERE id = :user_id LIMIT 1");
     $org_stmt->execute([':user_id' => $user_id]);
     $org_data = $org_stmt->fetch(PDO::FETCH_ASSOC);
     if (!$org_data) {
@@ -52,52 +62,103 @@ try {
     }
     $organization_id = (int)$org_data['organization_id'];
 
+    // -----------------------------
+    // GET - single or list
+    // -----------------------------
     if ($method === 'GET') {
-        // support: /employees.php?id=123 or list with pagination/search
-        $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
-        if ($id) {
-            $q = "SELECT e.*, d.name as department_name, p.title as position_title, bc.name as bank_name
+        // single employee by id
+        if (!empty($_GET['id'])) {
+            $id = (int)$_GET['id'];
+
+            $q = "SELECT
+                    e.id,
+                    e.employee_no,
+                    e.first_name,
+                    e.middle_name,
+                    e.last_name,
+                    CONCAT(e.first_name, ' ', COALESCE(e.middle_name, ''), ' ', e.last_name) AS full_name,
+                    e.id_number,
+                    e.kra_pin,
+                    e.nssf_no,
+                    e.nhif_no,
+                    e.shif_number,
+                    e.phone,
+                    e.personal_email,
+                    e.work_email,
+                    e.date_of_birth,
+                    e.gender,
+                    e.marital_status,
+                    e.nationality,
+                    e.passport_number,
+                    e.department_id,
+                    d.name AS department_name,
+                    e.position_id,
+                    p.title AS position_title,
+                    e.manager_id,
+                    CONCAT(m.first_name, ' ', COALESCE(m.middle_name, ''), ' ', m.last_name) AS manager_name,
+                    e.employment_type,
+                    e.employment_status,
+                    e.basic_salary,
+                    e.currency,
+                    e.hire_date,
+                    e.probation_end_date,
+                    e.contract_end_date,
+                    e.photo,
+                    e.postal_address,
+                    e.residential_address,
+                    e.county,
+                    e.sub_county,
+                    e.created_at,
+                    e.updated_at
                   FROM employees e
                   LEFT JOIN departments d ON e.department_id = d.id
                   LEFT JOIN positions p ON e.position_id = p.id
-                  LEFT JOIN bank_codes bc ON e.bank_code_id = bc.id
+                  LEFT JOIN employees m ON e.manager_id = m.id
                   WHERE e.id = :id AND e.organization_id = :org_id
                   LIMIT 1";
+
             $stmt = $db->prepare($q);
             $stmt->execute([':id' => $id, ':org_id' => $organization_id]);
             $emp = $stmt->fetch(PDO::FETCH_ASSOC);
+
             if (!$emp) {
                 http_response_code(404);
                 echo json_encode(['success' => false, 'message' => 'Employee not found']);
                 exit();
             }
-            $emp['full_name'] = trim($emp['first_name'].' '.($emp['middle_name'] ? $emp['middle_name'].' ' : '').$emp['last_name']);
+
             echo json_encode(['success' => true, 'data' => $emp]);
             exit();
         }
 
-        // list
+        // list with pagination & search
         $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
-        $limit = isset($_GET['limit']) ? min(100, (int)$_GET['limit']) : 50;
+        $limit = isset($_GET['limit']) ? min(200, (int)$_GET['limit']) : 50;
         $offset = ($page - 1) * $limit;
         $search = isset($_GET['search']) ? trim($_GET['search']) : '';
-        $status = isset($_GET['status']) ? $_GET['status'] : 'active';
+        $status = isset($_GET['status']) ? trim($_GET['status']) : null;
         $department_id = isset($_GET['department_id']) ? (int)$_GET['department_id'] : null;
+        $position_id = isset($_GET['position_id']) ? (int)$_GET['position_id'] : null;
 
         $where = ["e.organization_id = :organization_id"];
         $params = [':organization_id' => $organization_id];
 
         if ($search !== '') {
-            $where[] = "(e.first_name LIKE :search OR e.last_name LIKE :search OR e.employee_number LIKE :search OR e.work_email LIKE :search)";
+            $where[] = "(e.first_name LIKE :search OR e.middle_name LIKE :search OR e.last_name LIKE :search OR e.employee_no LIKE :search OR e.work_email LIKE :search OR e.phone LIKE :search)";
             $params[':search'] = "%{$search}%";
         }
         if ($status) {
+            // Accept case-insensitive values: normalize first letter upper for schema (Active)
+            $params[':status'] = ucfirst(strtolower($status));
             $where[] = "e.employment_status = :status";
-            $params[':status'] = $status;
         }
         if ($department_id) {
             $where[] = "e.department_id = :department_id";
             $params[':department_id'] = $department_id;
+        }
+        if ($position_id) {
+            $where[] = "e.position_id = :position_id";
+            $params[':position_id'] = $position_id;
         }
 
         $where_clause = implode(' AND ', $where);
@@ -108,31 +169,47 @@ try {
         $total = (int)$count_stmt->fetch(PDO::FETCH_ASSOC)['total'];
 
         $q = "SELECT
-                e.id, e.employee_number, e.first_name, e.middle_name, e.last_name,
-                e.date_of_birth, e.gender, e.phone_number, e.work_email,
-                e.employment_status, e.date_hired, e.date_terminated,
-                e.profile_photo, e.created_at,
-                d.name as department_name, d.id as department_id,
-                p.title as position_title, p.id as position_id,
-                bc.name as bank_name, e.bank_account_number
+                e.id,
+                e.employee_no,
+                e.first_name,
+                e.middle_name,
+                e.last_name,
+                CONCAT(e.first_name, ' ', COALESCE(e.middle_name, ''), ' ', e.last_name) AS full_name,
+                e.phone,
+                e.work_email,
+                e.personal_email,
+                e.employment_status,
+                e.employment_type,
+                e.basic_salary,
+                e.currency,
+                e.hire_date,
+                e.department_id,
+                d.name AS department_name,
+                e.position_id,
+                p.title AS position_title,
+                e.manager_id,
+                CONCAT(m.first_name, ' ', COALESCE(m.middle_name, ''), ' ', m.last_name) AS manager_name,
+                e.photo,
+                e.created_at
               FROM employees e
               LEFT JOIN departments d ON e.department_id = d.id
               LEFT JOIN positions p ON e.position_id = p.id
-              LEFT JOIN bank_codes bc ON e.bank_code_id = bc.id
+              LEFT JOIN employees m ON e.manager_id = m.id
               WHERE {$where_clause}
               ORDER BY e.created_at DESC
               LIMIT :limit OFFSET :offset";
+
         $stmt = $db->prepare($q);
+        // bind dynamic params
         foreach ($params as $k => $v) {
             $stmt->bindValue($k, $v);
         }
-        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
         $stmt->execute();
+
         $employees = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        foreach ($employees as &$e) {
-            $e['full_name'] = trim($e['first_name'].' '.($e['middle_name'] ? $e['middle_name'].' ' : '').$e['last_name']);
-        }
+
         echo json_encode([
             'success' => true,
             'data' => $employees,
@@ -140,18 +217,21 @@ try {
                 'total' => $total,
                 'page' => $page,
                 'limit' => $limit,
-                'pages' => $limit ? ceil($total / $limit) : 0
+                'pages' => $limit ? (int)ceil($total / $limit) : 0
             ]
         ]);
         exit();
     }
 
+    // -----------------------------
+    // POST - create employee
+    // -----------------------------
     if ($method === 'POST') {
         $data = json_decode(file_get_contents("php://input"));
         if (!is_object($data)) $data = json_decode('{}');
 
-        // required fields
-        $required = ['employee_number', 'first_name', 'last_name', 'date_of_birth', 'gender', 'phone_number', 'work_email', 'date_hired', 'department_id', 'position_id'];
+        // Required fields (based on your schema)
+        $required = ['employee_no', 'first_name', 'last_name', 'date_of_birth', 'gender', 'phone', 'work_email', 'hire_date', 'department_id', 'position_id'];
         foreach ($required as $r) {
             if (empty($data->$r)) {
                 http_response_code(400);
@@ -160,59 +240,133 @@ try {
             }
         }
 
-        // validate duplicate employee_number
-        $check = $db->prepare("SELECT id FROM employees WHERE employee_number = :emp_num AND organization_id = :org_id");
-        $check->execute([':emp_num' => $data->employee_number, ':org_id' => $organization_id]);
+        // validate duplicate employee_no
+        $check = $db->prepare("SELECT id FROM employees WHERE employee_no = :emp_no AND organization_id = :org_id");
+        $check->execute([':emp_no' => $data->employee_no, ':org_id' => $organization_id]);
         if ($check->fetch()) {
             http_response_code(409);
             echo json_encode(['success' => false, 'message' => 'Employee number already exists']);
             exit();
         }
 
-        $insert = $db->prepare("INSERT INTO employees (
-            organization_id, employee_number, first_name, middle_name, last_name,
-            date_of_birth, gender, phone_number, work_email, personal_email,
-            id_number, kra_pin, nssf_number, nhif_number,
-            department_id, position_id, employment_status, date_hired,
-            salary, allowances, created_at
-        ) VALUES (
-            :organization_id, :employee_number, :first_name, :middle_name, :last_name,
-            :date_of_birth, :gender, :phone_number, :work_email, :personal_email,
-            :id_number, :kra_pin, :nssf_number, :nhif_number,
-            :department_id, :position_id, 'active', :date_hired,
-            :salary, :allowances, NOW()
-        )");
+        $insert = $db->prepare("
+            INSERT INTO employees (
+                organization_id,
+                employee_no,
+                first_name,
+                middle_name,
+                last_name,
+                id_number,
+                kra_pin,
+                nssf_no,
+                nhif_no,
+                shif_number,
+                phone,
+                personal_email,
+                work_email,
+                date_of_birth,
+                gender,
+                marital_status,
+                nationality,
+                passport_number,
+                department_id,
+                position_id,
+                manager_id,
+                employment_type,
+                employment_status,
+                basic_salary,
+                currency,
+                hire_date,
+                probation_end_date,
+                contract_end_date,
+                photo,
+                postal_address,
+                residential_address,
+                county,
+                sub_county,
+                created_at
+            ) VALUES (
+                :organization_id,
+                :employee_no,
+                :first_name,
+                :middle_name,
+                :last_name,
+                :id_number,
+                :kra_pin,
+                :nssf_no,
+                :nhif_no,
+                :shif_number,
+                :phone,
+                :personal_email,
+                :work_email,
+                :date_of_birth,
+                :gender,
+                :marital_status,
+                :nationality,
+                :passport_number,
+                :department_id,
+                :position_id,
+                :manager_id,
+                :employment_type,
+                :employment_status,
+                :basic_salary,
+                :currency,
+                :hire_date,
+                :probation_end_date,
+                :contract_end_date,
+                :photo,
+                :postal_address,
+                :residential_address,
+                :county,
+                :sub_county,
+                NOW()
+            )
+        ");
 
         $insert->execute([
             ':organization_id' => $organization_id,
-            ':employee_number' => $data->employee_number,
+            ':employee_no' => $data->employee_no,
             ':first_name' => $data->first_name,
             ':middle_name' => $data->middle_name ?? null,
             ':last_name' => $data->last_name,
-            ':date_of_birth' => $data->date_of_birth,
-            ':gender' => $data->gender,
-            ':phone_number' => $data->phone_number,
-            ':work_email' => $data->work_email,
-            ':personal_email' => $data->personal_email ?? null,
             ':id_number' => $data->id_number ?? null,
             ':kra_pin' => $data->kra_pin ?? null,
-            ':nssf_number' => $data->nssf_number ?? null,
-            ':nhif_number' => $data->nhif_number ?? null,
+            ':nssf_no' => $data->nssf_no ?? null,
+            ':nhif_no' => $data->nhif_no ?? null,
+            ':shif_number' => $data->shif_number ?? null,
+            ':phone' => $data->phone,
+            ':personal_email' => $data->personal_email ?? null,
+            ':work_email' => $data->work_email,
+            ':date_of_birth' => $data->date_of_birth,
+            ':gender' => $data->gender,
+            ':marital_status' => $data->marital_status ?? null,
+            ':nationality' => $data->nationality ?? 'Kenyan',
+            ':passport_number' => $data->passport_number ?? null,
             ':department_id' => $data->department_id,
             ':position_id' => $data->position_id,
-            ':date_hired' => $data->date_hired,
-            ':salary' => $data->salary ?? 0,
-            ':allowances' => isset($data->allowances) ? json_encode($data->allowances) : null
+            ':manager_id' => $data->manager_id ?? null,
+            ':employment_type' => $data->employment_type ?? 'Permanent',
+            ':employment_status' => $data->employment_status ?? 'Active',
+            ':basic_salary' => isset($data->basic_salary) ? $data->basic_salary : 0.00,
+            ':currency' => $data->currency ?? 'KES',
+            ':hire_date' => $data->hire_date,
+            ':probation_end_date' => $data->probation_end_date ?? null,
+            ':contract_end_date' => $data->contract_end_date ?? null,
+            ':photo' => $data->photo ?? null,
+            ':postal_address' => $data->postal_address ?? null,
+            ':residential_address' => $data->residential_address ?? null,
+            ':county' => $data->county ?? null,
+            ':sub_county' => $data->sub_county ?? null
         ]);
 
         $employee_id = $db->lastInsertId();
 
         // optionally create employee user
         if (!empty($data->create_user_account)) {
-            $username = strtolower(str_replace(' ', '.', $data->first_name . '.' . $data->last_name));
+            $username = strtolower(preg_replace('/\s+/', '.', trim($data->first_name . '.' . $data->last_name)));
             $default_password = 'Welcome@' . date('Y');
             $password_hash = password_hash($default_password, PASSWORD_BCRYPT);
-            $user_q = $db->prepare("INSERT INTO employee_users (employee_id, username, email, password_hash, is_active, force_password_change, created_at) VALUES (:employee_id, :username, :email, :password_hash, 1, 1, NOW())");
+            $user_q = $db->prepare("INSERT INTO employee_users (employee_id, username, email, password_hash, role, is_active, force_password_change, created_at) VALUES (:employee_id, :username, :email, :password_hash, 'employee', 1, 1, NOW())");
             $user_q->execute([
                 ':employee_id' => $employee_id,
                 ':username' => $username,
@@ -222,10 +376,13 @@ try {
         }
 
         http_response_code(201);
-        echo json_encode(['success' => true, 'message' => 'Employee created successfully', 'data' => ['id' => $employee_id, 'employee_number' => $data->employee_number]]);
+        echo json_encode(['success' => true, 'message' => 'Employee created successfully', 'data' => ['id' => $employee_id, 'employee_no' => $data->employee_no]]);
         exit();
     }
 
+    // -----------------------------
+    // PUT - update employee
+    // -----------------------------
     if ($method === 'PUT') {
         $data = json_decode(file_get_contents("php://input"));
         if (empty($data->id)) {
@@ -243,22 +400,34 @@ try {
             exit();
         }
 
-        $updatable = ['first_name','middle_name','last_name','date_of_birth','gender','phone_number','work_email','personal_email','id_number','kra_pin','nssf_number','nhif_number','department_id','position_id','employment_status','date_hired','date_terminated','salary'];
+        $updatable = [
+            'first_name','middle_name','last_name','id_number','kra_pin','nssf_no','nhif_no','shif_number',
+            'phone','personal_email','work_email','date_of_birth','gender','marital_status','nationality',
+            'passport_number','department_id','position_id','manager_id','employment_type','employment_status',
+            'basic_salary','currency','hire_date','probation_end_date','contract_end_date','photo',
+            'postal_address','residential_address','county','sub_county'
+        ];
+
         $sets = [];
         $params = [':id' => $employee_id];
+
         foreach ($updatable as $f) {
             if (isset($data->$f)) {
                 $sets[] = "$f = :$f";
                 $params[":$f"] = $data->$f;
             }
         }
+
         if (empty($sets)) {
             http_response_code(400);
             echo json_encode(['success' => false, 'message' => 'No fields to update']);
             exit();
         }
+
         $sets[] = "updated_at = NOW()";
-        $sql = "UPDATE employees SET ".implode(', ', $sets)." WHERE id = :id";
+        $sql = "UPDATE employees SET " . implode(', ', $sets) . " WHERE id = :id AND organization_id = :org_id";
+        $params[':org_id'] = $organization_id;
+
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
 
@@ -266,6 +435,9 @@ try {
         exit();
     }
 
+    // -----------------------------
+    // DELETE - soft delete employee (terminate)
+    // -----------------------------
     if ($method === 'DELETE') {
         $employee_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
         if (!$employee_id) {
@@ -282,17 +454,18 @@ try {
             exit();
         }
 
-        $del = $db->prepare("UPDATE employees SET employment_status = 'terminated', date_terminated = NOW(), updated_at = NOW() WHERE id = :id AND organization_id = :org_id");
+        $del = $db->prepare("UPDATE employees SET employment_status = 'Terminated', contract_end_date = NOW(), updated_at = NOW() WHERE id = :id AND organization_id = :org_id");
         $del->execute([':id' => $employee_id, ':org_id' => $organization_id]);
 
         // deactivate user account
         $ud = $db->prepare("UPDATE employee_users SET is_active = 0 WHERE employee_id = :employee_id");
         $ud->execute([':employee_id' => $employee_id]);
 
-        echo json_encode(['success' => true, 'message' => 'Employee deleted successfully']);
+        echo json_encode(['success' => true, 'message' => 'Employee terminated successfully']);
         exit();
     }
 
+    // default
     http_response_code(405);
     echo json_encode(['success' => false, 'message' => 'Method not allowed']);
     exit();
