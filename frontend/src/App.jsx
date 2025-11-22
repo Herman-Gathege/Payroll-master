@@ -22,6 +22,8 @@ import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import EmployeePortal from './pages/EmployeePortal'
 import Security from './pages/Security'
+import DepartmentsPage from './pages/DepartmentsPage'
+
 
 // -------------------
 // Protected Route

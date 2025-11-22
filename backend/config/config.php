@@ -1,5 +1,6 @@
 <?php
 // Application Configuration
+// backend/config/config.php
 define('APP_NAME', 'HR Management System');
 define('APP_VERSION', '1.0.0');
 define('BASE_URL', 'http://localhost:8000');

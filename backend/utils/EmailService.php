@@ -7,6 +7,7 @@
  * - Welcome emails for new organizations
  * - Password reset emails
  * - Notifications
+ * backend/utils/EmailService.php
  */
 
 use PHPMailer\PHPMailer\PHPMailer;

@@ -1,287 +1,332 @@
 <?php
 /**
- * Departments API
- * Handles department CRUD operations
+ * backend/api/employer/departments.php
+ * FINAL CLEAN VERSION — Matches your real SQL schema.
  */
 
 require_once '../../config/database_secure.php';
 require_once '../../middleware/SecurityMiddleware.php';
 
-// Apply security measures
+// CORS + headers
 SecurityMiddleware::handleCORS();
 SecurityMiddleware::applySecurityHeaders();
 SecurityMiddleware::checkRateLimit('departments', 100, 60);
 
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
 $database = new Database();
 $db = $database->getConnection();
 
-$request_method = $_SERVER["REQUEST_METHOD"];
+// Authenticate employer
+try {
+    $session = SecurityMiddleware::verifyToken();
+} catch (Exception $e) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'message' => 'Authentication required']);
+    exit();
+}
 
-// Verify authentication
-$session = SecurityMiddleware::verifyToken();
-$user_id = $session['user_id'];
-$user_type = $session['user_type'];
+$user_id = $session['user_id'] ?? null;
+$user_type = $session['user_type'] ?? null;
 
-// Only employers can access
 if ($user_type !== 'employer') {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Access denied']);
     exit();
 }
 
-/**
- * GET - List all departments
- */
-if ($request_method === 'GET') {
-    try {
-        // Get employer's organization
-        $org_query = "SELECT organization_id FROM employer_users WHERE id = :user_id";
-        $org_stmt = $db->prepare($org_query);
-        $org_stmt->execute([':user_id' => $user_id]);
-        $org_data = $org_stmt->fetch(PDO::FETCH_ASSOC);
+$method = $_SERVER['REQUEST_METHOD'];
+$action = $_GET['action'] ?? null;
 
-        if (!$org_data) {
-            http_response_code(404);
-            echo json_encode(['success' => false, 'message' => 'Organization not found']);
+try {
+    // Get employer's organization
+    $orgStmt = $db->prepare("SELECT organization_id FROM employer_users WHERE id = :id LIMIT 1");
+    $orgStmt->execute([':id' => $user_id]);
+    $orgData = $orgStmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$orgData) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'message' => 'Organization not found']);
+        exit();
+    }
+
+    $organization_id = (int)$orgData['organization_id'];
+
+    // ============================================================
+    // GET — List or fetch one department
+    // ============================================================
+    if ($method === 'GET') {
+
+        // Get single department
+        if (!empty($_GET['id'])) {
+            $id = (int)$_GET['id'];
+
+            $query = "
+                SELECT 
+                    d.id, d.name, d.manager_id, d.is_active, d.created_at, d.updated_at,
+                    CONCAT(e.first_name, ' ', e.last_name) AS manager_name
+                FROM departments d
+                LEFT JOIN employees e ON e.id = d.manager_id
+                WHERE d.organization_id = :org AND d.id = :id
+                LIMIT 1
+            ";
+
+            $stmt = $db->prepare($query);
+            $stmt->execute([':org' => $organization_id, ':id' => $id]);
+            $dept = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$dept) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Department not found']);
+                exit();
+            }
+
+            echo json_encode(['success' => true, 'data' => $dept]);
             exit();
         }
 
-        $organization_id = $org_data['organization_id'];
-
-        // Get departments with employee count
-        $query = "SELECT
-                    d.id, d.name, d.description, d.manager_id, d.is_active, d.created_at,
-                    CONCAT(m.first_name, ' ', m.last_name) as manager_name,
-                    COUNT(e.id) as employee_count
-                  FROM departments d
-                  LEFT JOIN employees m ON d.manager_id = m.id
-                  LEFT JOIN employees e ON d.id = e.department_id AND e.employment_status = 'active'
-                  WHERE d.organization_id = :organization_id
-                  GROUP BY d.id
-                  ORDER BY d.name";
+        // Get all departments
+        $query = "
+            SELECT 
+                d.id, d.name, d.manager_id, d.is_active, d.created_at, d.updated_at,
+                CONCAT(e.first_name, ' ', e.last_name) AS manager_name,
+                (SELECT COUNT(*) FROM employees em 
+                 WHERE em.department_id = d.id 
+                 AND em.employment_status = 'Active') AS employee_count
+            FROM departments d
+            LEFT JOIN employees e ON e.id = d.manager_id
+            WHERE d.organization_id = :org
+            ORDER BY d.name ASC
+        ";
 
         $stmt = $db->prepare($query);
-        $stmt->execute([':organization_id' => $organization_id]);
-        $departments = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        http_response_code(200);
-        echo json_encode([
-            'success' => true,
-            'data' => $departments
-        ]);
-
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode([
-            'success' => false,
-            'message' => 'Failed to fetch departments',
-            'error' => Database::getConfig('app.debug') ? $e->getMessage() : 'Database error'
-        ]);
+        $stmt->execute([':org' => $organization_id]);
+        echo json_encode(['success' => true, 'data' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+        exit();
     }
-}
 
-/**
- * POST - Create department
- */
-elseif ($request_method === 'POST') {
-    try {
-        $data = json_decode(file_get_contents("php://input"));
+    // ============================================================
+    // POST — Create or assign/remove employee
+    // ============================================================
+    if ($method === 'POST') {
+        $input = json_decode(file_get_contents("php://input"));
 
-        // Validate required fields
-        SecurityMiddleware::validateRequired((array)$data, ['name']);
+        // Assign employee to department
+        if ($action === 'assignEmployee') {
 
-        // Get employer's organization
-        $org_query = "SELECT organization_id FROM employer_users WHERE id = :user_id";
-        $org_stmt = $db->prepare($org_query);
-        $org_stmt->execute([':user_id' => $user_id]);
-        $org_data = $org_stmt->fetch(PDO::FETCH_ASSOC);
-        $organization_id = $org_data['organization_id'];
+            if (empty($input->department_id) || empty($input->employee_id)) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'department_id and employee_id required']);
+                exit();
+            }
 
-        // Check if department name exists
-        $check_query = "SELECT id FROM departments WHERE name = :name AND organization_id = :org_id";
-        $check_stmt = $db->prepare($check_query);
-        $check_stmt->execute([':name' => $data->name, ':org_id' => $organization_id]);
-        if ($check_stmt->fetch()) {
-            http_response_code(409);
-            echo json_encode(['success' => false, 'message' => 'Department name already exists']);
+            $dept_id = (int)$input->department_id;
+            $employee_id = (int)$input->employee_id;
+
+            // Validate department
+            $d = $db->prepare("SELECT id FROM departments WHERE id = :id AND organization_id = :org");
+            $d->execute([':id' => $dept_id, ':org' => $organization_id]);
+            if (!$d->fetch()) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Department not found']);
+                exit();
+            }
+
+            // Validate employee
+            $e = $db->prepare("SELECT id FROM employees WHERE id = :id AND organization_id = :org");
+            $e->execute([':id' => $employee_id, ':org' => $organization_id]);
+            if (!$e->fetch()) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Employee not found']);
+                exit();
+            }
+
+            $stmt = $db->prepare("
+                UPDATE employees 
+                SET department_id = :dept, updated_at = NOW()
+                WHERE id = :emp AND organization_id = :org
+            ");
+
+            $stmt->execute([
+                ':dept' => $dept_id,
+                ':emp' => $employee_id,
+                ':org' => $organization_id
+            ]);
+
+            echo json_encode(['success' => true, 'message' => 'Employee assigned successfully']);
             exit();
         }
 
-        // Insert department
-        $insert_query = "INSERT INTO departments (
-            organization_id, name, description, manager_id, is_active, created_at
-        ) VALUES (
-            :organization_id, :name, :description, :manager_id, 1, NOW()
-        )";
+        // Remove employee from department
+        if ($action === 'removeEmployee') {
 
-        $insert_stmt = $db->prepare($insert_query);
-        $insert_stmt->execute([
-            ':organization_id' => $organization_id,
-            ':name' => $data->name,
-            ':description' => $data->description ?? null,
-            ':manager_id' => $data->manager_id ?? null
+            if (empty($input->employee_id)) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'employee_id required']);
+                exit();
+            }
+
+            $emp_id = (int)$input->employee_id;
+
+            $stmt = $db->prepare("
+                UPDATE employees 
+                SET department_id = NULL, updated_at = NOW()
+                WHERE id = :emp AND organization_id = :org
+            ");
+            $stmt->execute([':emp' => $emp_id, ':org' => $organization_id]);
+
+            echo json_encode(['success' => true, 'message' => 'Employee removed from department']);
+            exit();
+        }
+
+        // CREATE DEPARTMENT
+        if (empty($input->name)) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'Department name is required']);
+            exit();
+        }
+
+        // Check duplicate
+        $chk = $db->prepare("SELECT id FROM departments WHERE name = :name AND organization_id = :org");
+        $chk->execute([':name' => $input->name, ':org' => $organization_id]);
+        if ($chk->fetch()) {
+            http_response_code(409);
+            echo json_encode(['success' => false, 'message' => 'Department already exists']);
+            exit();
+        }
+
+        $ins = $db->prepare("
+            INSERT INTO departments (organization_id, name, manager_id, is_active, created_at)
+            VALUES (:org, :name, :manager, 1, NOW())
+        ");
+
+        $ins->execute([
+            ':org' => $organization_id,
+            ':name' => $input->name,
+            ':manager' => $input->manager_id ?? null
         ]);
 
-        $department_id = $db->lastInsertId();
-
-        http_response_code(201);
         echo json_encode([
             'success' => true,
             'message' => 'Department created successfully',
-            'data' => [
-                'id' => $department_id,
-                'name' => $data->name
-            ]
+            'data' => ['id' => $db->lastInsertId(), 'name' => $input->name]
         ]);
-
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode([
-            'success' => false,
-            'message' => 'Failed to create department',
-            'error' => Database::getConfig('app.debug') ? $e->getMessage() : 'Database error'
-        ]);
+        exit();
     }
-}
 
-/**
- * PUT - Update department
- */
-elseif ($request_method === 'PUT') {
-    try {
-        $data = json_decode(file_get_contents("php://input"));
+    // ============================================================
+    // PUT — Update department
+    // ============================================================
+    if ($method === 'PUT') {
+        $input = json_decode(file_get_contents("php://input"));
 
-        if (!isset($data->id)) {
+        if (empty($input->id)) {
             http_response_code(400);
             echo json_encode(['success' => false, 'message' => 'Department ID required']);
             exit();
         }
 
-        // Get employer's organization
-        $org_query = "SELECT organization_id FROM employer_users WHERE id = :user_id";
-        $org_stmt = $db->prepare($org_query);
-        $org_stmt->execute([':user_id' => $user_id]);
-        $org_data = $org_stmt->fetch(PDO::FETCH_ASSOC);
-        $organization_id = $org_data['organization_id'];
+        $dept_id = (int)$input->id;
 
-        // Verify department belongs to organization
-        $check_query = "SELECT id FROM departments WHERE id = :id AND organization_id = :org_id";
-        $check_stmt = $db->prepare($check_query);
-        $check_stmt->execute([':id' => $data->id, ':org_id' => $organization_id]);
-        if (!$check_stmt->fetch()) {
+        // Validate department
+        $chk = $db->prepare("SELECT id FROM departments WHERE id = :id AND organization_id = :org");
+        $chk->execute([':id' => $dept_id, ':org' => $organization_id]);
+        if (!$chk->fetch()) {
             http_response_code(404);
             echo json_encode(['success' => false, 'message' => 'Department not found']);
             exit();
         }
 
-        // Build update query
-        $updates = [];
-        $params = [':id' => $data->id];
+        $fields = [];
+        $params = [':id' => $dept_id];
 
-        $updatable_fields = ['name', 'description', 'manager_id', 'is_active'];
-
-        foreach ($updatable_fields as $field) {
-            if (isset($data->$field)) {
-                $updates[] = "$field = :$field";
-                $params[":$field"] = $data->$field;
-            }
+        if (isset($input->name)) {
+            $fields[] = "name = :name";
+            $params[':name'] = $input->name;
         }
 
-        if (empty($updates)) {
+        if (isset($input->manager_id)) {
+            $fields[] = "manager_id = :manager_id";
+            $params[':manager_id'] = $input->manager_id ?: null;
+        }
+
+        if (isset($input->is_active)) {
+            $fields[] = "is_active = :active";
+            $params[':active'] = $input->is_active;
+        }
+
+        if (empty($fields)) {
             http_response_code(400);
             echo json_encode(['success' => false, 'message' => 'No fields to update']);
             exit();
         }
 
-        $updates[] = "updated_at = NOW()";
-        $update_query = "UPDATE departments SET " . implode(', ', $updates) . " WHERE id = :id";
+        $fields[] = "updated_at = NOW()";
 
-        $stmt = $db->prepare($update_query);
+        $sql = "UPDATE departments SET ".implode(', ', $fields)." WHERE id = :id";
+        $stmt = $db->prepare($sql);
         $stmt->execute($params);
 
-        http_response_code(200);
-        echo json_encode([
-            'success' => true,
-            'message' => 'Department updated successfully'
-        ]);
-
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode([
-            'success' => false,
-            'message' => 'Failed to update department',
-            'error' => Database::getConfig('app.debug') ? $e->getMessage() : 'Database error'
-        ]);
+        echo json_encode(['success' => true, 'message' => 'Department updated successfully']);
+        exit();
     }
-}
 
-/**
- * DELETE - Delete department
- */
-elseif ($request_method === 'DELETE') {
-    try {
-        $department_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+    // ============================================================
+    // DELETE — Delete department
+    // ============================================================
+    if ($method === 'DELETE') {
+        $dept_id = (int)($_GET['id'] ?? 0);
 
-        if (!$department_id) {
+        if (!$dept_id) {
             http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'Department ID required']);
+            echo json_encode(['success' => false, 'message' => 'Department ID missing']);
             exit();
         }
 
-        // Get employer's organization
-        $org_query = "SELECT organization_id FROM employer_users WHERE id = :user_id";
-        $org_stmt = $db->prepare($org_query);
-        $org_stmt->execute([':user_id' => $user_id]);
-        $org_data = $org_stmt->fetch(PDO::FETCH_ASSOC);
-        $organization_id = $org_data['organization_id'];
+        // Check if department has active employees
+        $ec = $db->prepare("
+            SELECT COUNT(*) AS c
+            FROM employees
+            WHERE department_id = :dept AND employment_status = 'Active'
+        ");
+        $ec->execute([':dept' => $dept_id]);
+        $count = (int)$ec->fetch(PDO::FETCH_ASSOC)['c'];
 
-        // Check if department has employees
-        $emp_check = "SELECT COUNT(*) as count FROM employees WHERE department_id = :dept_id AND employment_status = 'active'";
-        $emp_stmt = $db->prepare($emp_check);
-        $emp_stmt->execute([':dept_id' => $department_id]);
-        $emp_count = $emp_stmt->fetch(PDO::FETCH_ASSOC)['count'];
-
-        if ($emp_count > 0) {
+        if ($count > 0) {
             http_response_code(400);
-            echo json_encode([
-                'success' => false,
-                'message' => "Cannot delete department with {$emp_count} active employees"
-            ]);
+            echo json_encode(['success' => false, 'message' => "Cannot delete department with $count active employees"]);
             exit();
         }
 
-        // Delete department
-        $delete_query = "DELETE FROM departments WHERE id = :id AND organization_id = :org_id";
-        $stmt = $db->prepare($delete_query);
-        $stmt->execute([':id' => $department_id, ':org_id' => $organization_id]);
+        $del = $db->prepare("DELETE FROM departments WHERE id = :id AND organization_id = :org");
+        $del->execute([':id' => $dept_id, ':org' => $organization_id]);
 
-        if ($stmt->rowCount() === 0) {
+        if ($del->rowCount() === 0) {
             http_response_code(404);
             echo json_encode(['success' => false, 'message' => 'Department not found']);
             exit();
         }
 
-        http_response_code(200);
-        echo json_encode([
-            'success' => true,
-            'message' => 'Department deleted successfully'
-        ]);
-
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode([
-            'success' => false,
-            'message' => 'Failed to delete department',
-            'error' => Database::getConfig('app.debug') ? $e->getMessage() : 'Database error'
-        ]);
+        echo json_encode(['success' => true, 'message' => 'Department deleted successfully']);
+        exit();
     }
-}
 
-/**
- * Invalid method
- */
-else {
+    // Default
     http_response_code(405);
     echo json_encode(['success' => false, 'message' => 'Method not allowed']);
+    exit();
+
+
+} catch (PDOException $e) {
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Server error',
+        'error' => (defined('APP_DEBUG') && APP_DEBUG ? $e->getMessage() : 'Database error')
+    ]);
+    exit();
 }
 ?>

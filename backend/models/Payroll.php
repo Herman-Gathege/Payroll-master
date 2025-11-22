@@ -1,4 +1,9 @@
 <?php
+
+/**
+ * backend/models/Payroll.php
+ */
+
 class Payroll {
     private $conn;
     private $table_name = "payroll";
