@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useMutation } from 'react-query';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useQuery, useMutation } from 'react-query';
 import {
   Box,
   Paper,
@@ -16,43 +16,43 @@ import { toast } from 'react-toastify';
 import { employeeService } from '../services/employeeService';
 import { primaryButtonStyle } from '../styles/buttonStyles';
 
-const initialFormData = {
-  employee_number: '',
-  first_name: '',
-  last_name: '',
-  middle_name: '',
-  national_id: '',
-  kra_pin: '',
-  date_of_birth: '',
-  gender: '',
-  phone_number: '',
-  personal_email: '',
-  work_email: '',
-  physical_address: '',
-  employment_type: 'permanent',
-  hire_date: '',
-  department_id: '',
-  position_id: '',
-  basic_salary: '',
-  employment_status: 'active',
-};
-
-export default function AddEmployee() {
+export default function UpdateEmployee() {
+  const { id } = useParams();
   const navigate = useNavigate();
-  const [formData, setFormData] = useState(initialFormData);
+
+  const [formData, setFormData] = useState(null);
   const [errors, setErrors] = useState({});
 
-  const createMutation = useMutation(employeeService.createEmployee, {
-    onSuccess: () => {
-      toast.success('Employee added successfully!');
-      navigate('/employees');
-    },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to add employee');
-    },
-  });
+  // Fetch employee data by ID
+  const { data, isLoading: isFetching } = useQuery(['employee', id], () =>
+    employeeService.getEmployeeById(id)
+  );
 
-  // Generic input change handler
+  // Initialize formData when employee data is loaded
+  useEffect(() => {
+    if (data?.record) {
+      setFormData({
+        ...data.record,
+        // Ensure required fields are present
+        employment_type: data.record.employment_type || 'permanent',
+        employment_status: data.record.employment_status || 'active',
+      });
+    }
+  }, [data]);
+
+  const updateMutation = useMutation(
+    (updatedData) => employeeService.updateEmployee(id, updatedData),
+    {
+      onSuccess: () => {
+        toast.success('Employee updated successfully!');
+        navigate('/employees');
+      },
+      onError: (error) => {
+        toast.error(error.response?.data?.message || 'Failed to update employee');
+      },
+    }
+  );
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -62,7 +62,6 @@ export default function AddEmployee() {
     }
   };
 
-  // Form validation
   const validateForm = () => {
     const newErrors = {};
 
@@ -71,15 +70,7 @@ export default function AddEmployee() {
       if (!formData[field]) newErrors[field] = 'This field is required';
     });
 
-    if (formData.first_name && !/^[a-zA-Z\s]+$/.test(formData.first_name)) {
-      newErrors.first_name = 'First name should contain only letters';
-    }
-
-    if (formData.last_name && !/^[a-zA-Z\s]+$/.test(formData.last_name)) {
-      newErrors.last_name = 'Last name should contain only letters';
-    }
-
-    // Phone number validation
+    // Phone validation
     if (!formData.phone_number) newErrors.phone_number = 'Phone number is required';
     else if (!/^\+?[\d\s-()]+$/.test(formData.phone_number))
       newErrors.phone_number = 'Invalid phone number format';
@@ -121,16 +112,18 @@ export default function AddEmployee() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (validateForm()) createMutation.mutate(formData);
+    if (validateForm()) updateMutation.mutate(formData);
     else toast.error('Please fix the errors in the form');
   };
 
   const handleCancel = () => navigate('/employees');
 
+  if (isFetching || !formData) return <Typography>Loading employee data...</Typography>;
+
   return (
     <Box>
       <Typography variant="h4" sx={{ fontWeight: 600, mb: 3 }}>
-        Add New Employee
+        Update Employee
       </Typography>
 
       <Paper sx={{ p: 4 }}>
@@ -365,7 +358,7 @@ export default function AddEmployee() {
               variant="outlined"
               startIcon={<Cancel />}
               onClick={handleCancel}
-              disabled={createMutation.isLoading}
+              disabled={updateMutation.isLoading}
             >
               Cancel
             </Button>
@@ -373,10 +366,10 @@ export default function AddEmployee() {
               type="submit"
               variant="contained"
               startIcon={<Save />}
-              disabled={createMutation.isLoading}
+              disabled={updateMutation.isLoading}
               sx={primaryButtonStyle}
             >
-              {createMutation.isLoading ? 'Saving...' : 'Save Employee'}
+              {updateMutation.isLoading ? 'Updating...' : 'Update Employee'}
             </Button>
           </Box>
         </form>

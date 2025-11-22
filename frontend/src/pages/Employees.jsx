@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import { useQuery } from 'react-query'
-import { useNavigate } from 'react-router-dom'
+import { useState, useMemo } from 'react';
+import { useQuery } from 'react-query';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -14,43 +14,58 @@ import {
   Typography,
   TextField,
   IconButton,
-  Chip
-} from '@mui/material'
-import { Add, Edit, Visibility, Search } from '@mui/icons-material'
-import { employeeService } from '../services/employeeService'
+  Chip,
+  InputAdornment
+} from '@mui/material';
+import { Add, Edit, Visibility, Search } from '@mui/icons-material';
+import { employeeService } from '../services/employeeService';
 
 export default function Employees() {
-  const [searchTerm, setSearchTerm] = useState('')
-  const navigate = useNavigate()
+  const [searchTerm, setSearchTerm] = useState('');
+  const navigate = useNavigate();
 
-  const { data, isLoading, error } = useQuery('employees', employeeService.getAllEmployees)
+  // Fetch all employees using react-query
+  const { data, isLoading, error } = useQuery('employees', employeeService.getAllEmployees);
 
-  const employees = data?.records || []
+  const employees = data?.records || [];
 
-  const filteredEmployees = employees.filter(emp =>
-    emp.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.employee_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.department_name?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // Memoized filtered employees for performance
+  const filteredEmployees = useMemo(() => {
+    if (!searchTerm) return employees;
+    return employees.filter(emp =>
+      emp.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      emp.employee_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      emp.department_name?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [employees, searchTerm]);
 
+  // Map employment status to Material-UI Chip colors
   const getStatusColor = (status) => {
     const statusColors = {
       active: 'success',
       on_leave: 'warning',
       suspended: 'error',
-      terminated: 'default'
-    }
-    return statusColors[status] || 'default'
-  }
+      terminated: 'default',
+    };
+    return statusColors[status] || 'default';
+  };
+
+  // Handlers
+  const handleAdd = () => navigate('/employees/new');
+  const handleView = (id) => navigate(`/employee-portal/${id}`);
+  const handleEdit = (id) => navigate(`/employees/${id}`);
 
   return (
     <Box>
+      {/* Header */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" sx={{ fontWeight: 600 }}>Employees</Typography>
+        <Typography variant="h4" sx={{ fontWeight: 600 }}>
+          Employees
+        </Typography>
         <Button
           variant="contained"
           startIcon={<Add />}
-          onClick={() => navigate('/employees/new')}
+          onClick={handleAdd}
           sx={{
             bgcolor: '#1976d2',
             borderRadius: '6px',
@@ -58,27 +73,31 @@ export default function Employees() {
             fontSize: '13px',
             textTransform: 'none',
             fontWeight: 500,
-            '&:hover': {
-              bgcolor: '#1565c0',
-            }
+            '&:hover': { bgcolor: '#1565c0' },
           }}
         >
           Add Employee
         </Button>
       </Box>
 
+      {/* Search */}
       <Paper sx={{ p: 2, mb: 2 }}>
         <TextField
           fullWidth
-          placeholder="Search employees by name, number, or department..."
+          placeholder="Search by name, number, or department..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           InputProps={{
-            startAdornment: <Search sx={{ mr: 1, color: 'action.active' }} />
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search sx={{ color: 'action.active' }} />
+              </InputAdornment>
+            ),
           }}
         />
       </Paper>
 
+      {/* Employees Table */}
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
@@ -96,41 +115,43 @@ export default function Employees() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} align="center">Loading...</TableCell>
+                <TableCell colSpan={8} align="center">
+                  Loading...
+                </TableCell>
+              </TableRow>
+            ) : error ? (
+              <TableRow>
+                <TableCell colSpan={8} align="center">
+                  Error loading employees
+                </TableCell>
               </TableRow>
             ) : filteredEmployees.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} align="center">No employees found</TableCell>
+                <TableCell colSpan={8} align="center">
+                  No employees found
+                </TableCell>
               </TableRow>
             ) : (
-              filteredEmployees.map((employee) => (
-                <TableRow key={employee.id} hover>
-                  <TableCell>{employee.employee_number}</TableCell>
-                  <TableCell>{employee.full_name}</TableCell>
-                  <TableCell>{employee.department_name}</TableCell>
-                  <TableCell>{employee.position_title}</TableCell>
-                  <TableCell>{employee.phone_number}</TableCell>
-                  <TableCell>{employee.work_email}</TableCell>
+              filteredEmployees.map((emp) => (
+                <TableRow key={emp.id} hover>
+                  <TableCell>{emp.employee_number}</TableCell>
+                  <TableCell>{emp.full_name}</TableCell>
+                  <TableCell>{emp.department_name}</TableCell>
+                  <TableCell>{emp.position_title}</TableCell>
+                  <TableCell>{emp.phone_number}</TableCell>
+                  <TableCell>{emp.work_email}</TableCell>
                   <TableCell>
                     <Chip
-                      label={employee.employment_status}
-                      color={getStatusColor(employee.employment_status)}
+                      label={emp.employment_status}
+                      color={getStatusColor(emp.employment_status)}
                       size="small"
                     />
                   </TableCell>
                   <TableCell align="center">
-                    <IconButton
-                      size="small"
-                      onClick={() => navigate(`/employee-portal/${employee.id}`)}
-                      title="View Employee Portal"
-                    >
+                    <IconButton size="small" onClick={() => handleView(emp.id)} title="View Portal">
                       <Visibility />
                     </IconButton>
-                    <IconButton
-                      size="small"
-                      onClick={() => navigate(`/employees/${employee.id}`)}
-                      title="Edit Employee"
-                    >
+                    <IconButton size="small" onClick={() => handleEdit(emp.id)} title="Edit Employee">
                       <Edit />
                     </IconButton>
                   </TableCell>
@@ -141,5 +162,5 @@ export default function Employees() {
         </Table>
       </TableContainer>
     </Box>
-  )
+  );
 }

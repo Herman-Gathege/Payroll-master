@@ -2,7 +2,7 @@ import api from './api'
 
 /**
  * Employee Service
- * Handles employee-related API calls with dual authentication support
+ * Handles employee-related API calls for both Employer and Employee (ESS)
  */
 export const employeeService = {
   /**
@@ -19,19 +19,17 @@ export const employeeService = {
   },
 
   /**
-   * Get employee by ID (Employer) or own profile (Employee)
+   * Get a single employee (Employer) or own profile (Employee)
    */
   getEmployee: async (id) => {
     try {
       const userType = localStorage.getItem('userType')
       
-      // If employee, always get own profile
       if (userType === 'employee') {
         const response = await api.get('/employee/profile.php')
         return response.data
       }
-      
-      // If employer, get specific employee
+
       const response = await api.get(`/employer/employees/${id}`)
       return response.data
     } catch (error) {
@@ -41,7 +39,7 @@ export const employeeService = {
   },
 
   /**
-   * Get current user's profile (Employee)
+   * Get current logged-in employee's profile (Employee)
    */
   getMyProfile: async () => {
     try {
@@ -56,7 +54,7 @@ export const employeeService = {
   },
 
   /**
-   * Create new employee (Employer only)
+   * Create a new employee (Employer only)
    */
   createEmployee: async (employeeData) => {
     try {
@@ -69,24 +67,24 @@ export const employeeService = {
   },
 
   /**
-   * Update employee (Employer updates any, Employee updates own)
+   * Update employee
+   * - Employee updates own profile (limited fields)
+   * - Employer updates any employee (full fields)
    */
   updateEmployee: async (employeeData) => {
     try {
       const userType = localStorage.getItem('userType')
       
       if (userType === 'employee') {
-        // Employee can only update own profile (limited fields)
         const response = await api.put('/employee/profile.php', {
-          phone: employeeData.phone,
+          phone_number: employeeData.phone_number,
           personal_email: employeeData.personal_email,
           emergency_contact_name: employeeData.emergency_contact_name,
           emergency_contact_phone: employeeData.emergency_contact_phone,
         })
         return response.data
       }
-      
-      // Employer can update full employee record
+
       const response = await api.put(`/employer/employees/${employeeData.id}`, employeeData)
       return response.data
     } catch (error) {
@@ -96,7 +94,35 @@ export const employeeService = {
   },
 
   /**
-   * Delete/Deactivate employee (Employer only)
+   * Update logged-in employee profile (used in ESS Edit Profile)
+   */
+  updateMyProfile: async (profileData) => {
+    try {
+      const response = await api.put('/employee/profile.php', profileData)
+      return response.data
+    } catch (error) {
+      console.error('[employeeService] Error updating profile:', error)
+      throw error
+    }
+  },
+
+  /**
+   * Upload documents for logged-in employee
+   */
+  uploadDocument: async (formData) => {
+    try {
+      const response = await api.post('/employee/documents.php', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      return response.data
+    } catch (error) {
+      console.error('[employeeService] Error uploading documents:', error)
+      throw error
+    }
+  },
+
+  /**
+   * Delete employee (Employer only)
    */
   deleteEmployee: async (id) => {
     try {
@@ -136,4 +162,3 @@ export const employeeService = {
     }
   }
 }
-
