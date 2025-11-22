@@ -31,7 +31,8 @@ import {
   School,
   Settings as SettingsIcon,
   Logout,
-  AccountCircle
+  AccountCircle,
+  CorporateFare
 } from '@mui/icons-material'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -42,7 +43,7 @@ const dashboardMenuItem = [
 ]
 
 const hrMenuItems = [
-   { text: 'Departments', icon: <Work />, path: '/employer/departments' },
+   { text: 'Departments', icon: <CorporateFare />, path: '/employer/departments' },
   { text: 'Employees', icon: <People />, path: '/employer/employees' },
   { text: 'Recruitment', icon: <Work />, path: '/employer/recruitment' },
   { text: 'Leave Management', icon: <EventAvailable />, path: '/employer/leave' },
