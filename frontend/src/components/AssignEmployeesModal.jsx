@@ -5,7 +5,7 @@ import {
   Checkbox, CircularProgress
 } from '@mui/material';
 
-import { searchEmployees } from '../services/employeeService';
+import { employeeService } from '../services/employeeService';
 import { assignEmployeeToDepartment } from '../services/departmentsService';
 
 export default function AssignEmployeesModal({ open, onClose, department, onSuccess }) {
@@ -25,7 +25,7 @@ export default function AssignEmployeesModal({ open, onClose, department, onSucc
 
     try {
       setLoading(true);
-      const res = await searchEmployees(q, 50);
+      const res = await employeeService.searchEmployees(q);
       const items = res?.data?.records || res?.data?.data || [];
       setResults(items);
     } catch (err) {

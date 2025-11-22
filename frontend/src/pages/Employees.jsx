@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import { useQuery } from 'react-query'
-import { useNavigate } from 'react-router-dom'
+import { useState } from "react";
+import { useQuery } from "react-query";
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   Button,
@@ -14,53 +14,72 @@ import {
   Typography,
   TextField,
   IconButton,
-  Chip
-} from '@mui/material'
-import { Add, Edit, Visibility, Search } from '@mui/icons-material'
-import { employeeService } from '../services/employeeService'
+  Chip,
+} from "@mui/material";
+import { Add, Edit, Visibility, Search } from "@mui/icons-material";
+import employeeService from "../services/employeeService";
 
 export default function Employees() {
-  const [searchTerm, setSearchTerm] = useState('')
-  const navigate = useNavigate()
+  const [searchTerm, setSearchTerm] = useState("");
+  const navigate = useNavigate();
 
-  const { data, isLoading, error } = useQuery('employees', employeeService.getAllEmployees)
+  // ----------------------------------------------------
+  // Fetch employees from backend
+  // backend returns: { success, data: [...], pagination }
+  // ----------------------------------------------------
+  const { data, isLoading, error } = useQuery(
+    "employees",
+    employeeService.getAllEmployees
+  );
 
-  const employees = data?.records || []
+  const employees = data?.data || []; // FIXED (backend uses data not records)
 
-  const filteredEmployees = employees.filter(emp =>
-    emp.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.employee_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.department_name?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // ----------------------------------------------------
+  // Local filtering (optional)
+  // ----------------------------------------------------
+  const filteredEmployees = employees.filter(
+    (emp) =>
+      emp.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      emp.employee_no?.toLowerCase().includes(searchTerm.toLowerCase()) || // FIXED
+      emp.department_name?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const getStatusColor = (status) => {
-    const statusColors = {
-      active: 'success',
-      on_leave: 'warning',
-      suspended: 'error',
-      terminated: 'default'
-    }
-    return statusColors[status] || 'default'
-  }
+    const map = {
+      active: "success",
+      on_leave: "warning",
+      suspended: "error",
+      terminated: "default",
+    };
+    return map[status] || "default";
+  };
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" sx={{ fontWeight: 600 }}>Employees</Typography>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={3}
+      >
+        <Typography variant="h4" sx={{ fontWeight: 600 }}>
+          Employees
+        </Typography>
+
         <Button
           variant="contained"
           startIcon={<Add />}
-          onClick={() => navigate('/employees/new')}
+          onClick={() => navigate('/employer/employees/new')}
           sx={{
-            bgcolor: '#1976d2',
-            borderRadius: '6px',
-            padding: '6px 16px',
-            fontSize: '13px',
-            textTransform: 'none',
+            bgcolor: "#1976d2",
+            borderRadius: "6px",
+            padding: "6px 16px",
+            fontSize: "13px",
+            textTransform: "none",
             fontWeight: 500,
-            '&:hover': {
-              bgcolor: '#1565c0',
-            }
+            "&:hover": {
+              bgcolor: "#1565c0",
+            },
           }}
         >
           Add Employee
@@ -74,7 +93,7 @@ export default function Employees() {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           InputProps={{
-            startAdornment: <Search sx={{ mr: 1, color: 'action.active' }} />
+            startAdornment: <Search sx={{ mr: 1, color: "action.active" }} />,
           }}
         />
       </Paper>
@@ -93,23 +112,28 @@ export default function Employees() {
               <TableCell align="center">Actions</TableCell>
             </TableRow>
           </TableHead>
+
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} align="center">Loading...</TableCell>
+                <TableCell colSpan={8} align="center">
+                  Loading...
+                </TableCell>
               </TableRow>
             ) : filteredEmployees.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} align="center">No employees found</TableCell>
+                <TableCell colSpan={8} align="center">
+                  No employees found
+                </TableCell>
               </TableRow>
             ) : (
               filteredEmployees.map((employee) => (
                 <TableRow key={employee.id} hover>
-                  <TableCell>{employee.employee_number}</TableCell>
+                  <TableCell>{employee.employee_no}</TableCell> {/* FIXED */}
                   <TableCell>{employee.full_name}</TableCell>
                   <TableCell>{employee.department_name}</TableCell>
                   <TableCell>{employee.position_title}</TableCell>
-                  <TableCell>{employee.phone_number}</TableCell>
+                  <TableCell>{employee.phone}</TableCell> {/* FIXED field */}
                   <TableCell>{employee.work_email}</TableCell>
                   <TableCell>
                     <Chip
@@ -121,14 +145,19 @@ export default function Employees() {
                   <TableCell align="center">
                     <IconButton
                       size="small"
-                      onClick={() => navigate(`/employee-portal/${employee.id}`)}
-                      title="View Employee Portal"
+                      onClick={() =>
+                        navigate(`/employer/employees/${employee.id}`)
+                      }
+                      title="View Employee Details"
                     >
                       <Visibility />
                     </IconButton>
+
                     <IconButton
                       size="small"
-                      onClick={() => navigate(`/employees/${employee.id}`)}
+                      onClick={() =>
+                        navigate(`/employer/employees/${employee.id}`)
+                      }
                       title="Edit Employee"
                     >
                       <Edit />
@@ -141,5 +170,5 @@ export default function Employees() {
         </Table>
       </TableContainer>
     </Box>
-  )
+  );
 }
