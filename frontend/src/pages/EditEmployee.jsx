@@ -6,7 +6,11 @@ import {
 } from "@mui/material";
 import { Save, Cancel } from "@mui/icons-material";
 import { toast } from "react-toastify";
+
 import employeeService from "../services/employeeService";
+import { getDepartments } from "../services/departmentsService";
+import { getPositions } from "../services/positionsService";
+
 import { primaryButtonStyle } from "../styles/buttonStyles";
 
 export default function EditEmployee() {
@@ -15,6 +19,9 @@ export default function EditEmployee() {
 
   const [formData, setFormData] = useState(null);
   const [errors, setErrors] = useState({});
+
+  const [departments, setDepartments] = useState([]);
+  const [positions, setPositions] = useState([]);
 
   // -------------------- Load employee ----------------------
   useEffect(() => {
@@ -33,6 +40,26 @@ export default function EditEmployee() {
     }
     load();
   }, [id]);
+
+  // -------------------- Load dropdowns ----------------------
+  useEffect(() => {
+    async function loadDropDowns() {
+      try {
+        const [deptRes, posRes] = await Promise.all([
+          getDepartments(),
+          getPositions()
+        ]);
+
+        setDepartments(deptRes.data?.data || []);
+        setPositions(posRes.data?.data || []);
+
+      } catch (err) {
+        toast.error("Failed to load dropdown data");
+      }
+    }
+
+    loadDropDowns();
+  }, []);
 
   const updateMutation = useMutation(employeeService.updateEmployee, {
     onSuccess: () => {
@@ -53,7 +80,16 @@ export default function EditEmployee() {
   };
 
   const validateForm = () => {
-    const required = ["first_name", "last_name", "phone", "work_email", "hire_date", "department_id", "position_id"];
+    const required = [
+      "first_name",
+      "last_name",
+      "phone",
+      "work_email",
+      "hire_date",
+      "department_id",
+      "position_id",
+    ];
+
     const newErrors = {};
 
     required.forEach((field) => {
@@ -194,9 +230,11 @@ export default function EditEmployee() {
           <Divider sx={{ mb: 3 }} />
 
           <Grid container spacing={3}>
+            {/* ---------------- Department dropdown ---------------- */}
             <Grid item xs={12} sm={6} md={4}>
               <TextField
-                label="Department ID"
+                select
+                label="Department"
                 fullWidth
                 name="department_id"
                 value={formData.department_id}
@@ -204,12 +242,20 @@ export default function EditEmployee() {
                 error={!!errors.department_id}
                 helperText={errors.department_id}
                 required
-              />
+              >
+                {departments.map((dept) => (
+                  <MenuItem key={dept.id} value={dept.id}>
+                    {dept.name}
+                  </MenuItem>
+                ))}
+              </TextField>
             </Grid>
 
+            {/* ---------------- Position dropdown ---------------- */}
             <Grid item xs={12} sm={6} md={4}>
               <TextField
-                label="Position ID"
+                select
+                label="Position"
                 fullWidth
                 name="position_id"
                 value={formData.position_id}
@@ -217,7 +263,13 @@ export default function EditEmployee() {
                 error={!!errors.position_id}
                 helperText={errors.position_id}
                 required
-              />
+              >
+                {positions.map((pos) => (
+                  <MenuItem key={pos.id} value={pos.id}>
+                    {pos.title}
+                  </MenuItem>
+                ))}
+              </TextField>
             </Grid>
 
             <Grid item xs={12} sm={6} md={4}>

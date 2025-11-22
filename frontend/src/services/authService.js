@@ -5,23 +5,31 @@ import api from './api'
 export const authService = {
   // Unified login - handles both employer and employee
   login: async (username, password) => {
-    console.log('[authService.login] Starting unified login request')
-    console.log('[authService.login] Username:', username)
-    console.log('[authService.login] Password length:', password?.length)
-    console.log('[authService.login] API endpoint: /unified_auth.php')
+  console.log('[authService.login] Starting unified login request')
 
-    try {
-      const response = await api.post('/unified_auth.php', { username, password })
-      console.log('[authService.login] Response received:', response)
-      console.log('[authService.login] Response data:', response.data)
-      return response.data
-    } catch (error) {
-      console.error('[authService.login] Error occurred:', error)
-      console.error('[authService.login] Error response:', error.response)
-      console.error('[authService.login] Error response data:', error.response?.data)
-      throw error
+  try {
+    const response = await api.post('/unified_auth.php', { username, password })
+
+    // --- FIX: Save auth data ---
+    if (response.data?.token) {
+      localStorage.setItem('token', response.data.token)
     }
-  },
+
+    if (response.data?.user_type) {
+      localStorage.setItem('userType', response.data.user_type)
+    }
+
+    if (response.data?.user) {
+      localStorage.setItem('user', JSON.stringify(response.data.user))
+    }
+    // ----------------------------
+
+    return response.data
+  } catch (error) {
+    console.error('[authService.login] Error occurred:', error)
+    throw error
+  }
+},
 
   // Employer login (backward compatibility)
   employerLogin: async (username, password) => {
