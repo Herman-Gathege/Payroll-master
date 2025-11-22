@@ -1,4 +1,3 @@
-// frontend/src/pages/DepartmentsPage.jsx
 import React, { useEffect, useState } from "react";
 import {
   Box,
@@ -10,18 +9,18 @@ import {
   TableHead,
   TableRow,
   Typography,
-  IconButton,
+  IconButton
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
+
 import {
   getDepartments,
-  createDepartment,
-  updateDepartment,
-  deleteDepartment,
+  deleteDepartment
 } from "../services/departmentsService";
+
 import AssignEmployeesModal from "../components/AssignEmployeesModal";
 import AddDepartmentModal from "../components/AddDepartmentModal";
 import EditDepartmentModal from "../components/EditDepartmentModal";
@@ -123,6 +122,8 @@ export default function DepartmentsPage() {
                   >
                     <AssignmentIndIcon />
                   </IconButton>
+
+                  {/* Edit opens EditDepartmentModal (which now manages positions) */}
                   <IconButton
                     title="Edit"
                     onClick={() => {

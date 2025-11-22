@@ -1,13 +1,29 @@
 import React, { useState } from 'react';
 import {
-  Dialog, DialogTitle, DialogContent, DialogActions,
-  Button, TextField, List, ListItem, ListItemText,
-  Checkbox, CircularProgress
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
+  List,
+  ListItem,
+  ListItemText,
+  Checkbox,
+  CircularProgress,
+  Box,
+  Typography
 } from '@mui/material';
 
 import { employeeService } from '../services/employeeService';
 import { assignEmployeeToDepartment } from '../services/departmentsService';
 
+/**
+ * AssignEmployeesModal
+ * - Search employees
+ * - Select multiple
+ * - Assign all to the department (1-by-1 requests - backend requirement)
+ */
 export default function AssignEmployeesModal({ open, onClose, department, onSuccess }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -15,19 +31,35 @@ export default function AssignEmployeesModal({ open, onClose, department, onSucc
   const [loading, setLoading] = useState(false);
   const [assigning, setAssigning] = useState(false);
 
-  const handleSearch = async (q) => {
-    setQuery(q);
+  // -----------------------------------------------------
+  // Search employees
+  // -----------------------------------------------------
+  const handleSearch = async (value) => {
+    setQuery(value);
 
-    if (!q || q.length < 2) {
+    if (value.length < 2) {
       setResults([]);
       return;
     }
 
     try {
       setLoading(true);
-      const res = await employeeService.searchEmployees(q);
-      const items = res?.data?.records || res?.data?.data || [];
-      setResults(items);
+      const res = await employeeService.searchEmployees(value);
+
+      const employees =
+        res?.data?.records ||
+        res?.data?.data ||
+        [];
+
+      // Normalize results
+      const normalized = employees.map(e => ({
+        id: e.id,
+        full_name: e.full_name || `${e.first_name} ${e.last_name}`,
+        position: e.position_title || '',
+        department: e.department_name || ''
+      }));
+
+      setResults(normalized);
     } catch (err) {
       console.error(err);
       setResults([]);
@@ -36,34 +68,44 @@ export default function AssignEmployeesModal({ open, onClose, department, onSucc
     }
   };
 
+  // -----------------------------------------------------
+  // Toggling selected employees
+  // -----------------------------------------------------
   const toggleSelect = (id) => {
-    const copy = new Set(selected);
-    copy.has(id) ? copy.delete(id) : copy.add(id);
-    setSelected(copy);
+    setSelected(prev => {
+      const copy = new Set(prev);
+      copy.has(id) ? copy.delete(id) : copy.add(id);
+      return copy;
+    });
   };
 
+  // -----------------------------------------------------
+  // Assign employees -> backend requires 1-by-1 POST calls
+  // -----------------------------------------------------
   const handleAssign = async () => {
-    if (!department || selected.size === 0)
+    if (!department || selected.size === 0) {
       return alert('Select at least one employee.');
+    }
 
+    setAssigning(true);
     try {
-      setAssigning(true);
-
-      // Assign one employee at a time (backend requirement)
-      for (let id of Array.from(selected)) {
-        await assignEmployeeToDepartment(department.id, id);
+      for (const employeeId of selected) {
+        await assignEmployeeToDepartment(department.id, employeeId);
       }
 
       onSuccess && onSuccess();
 
-    } catch (err) {
-      console.error(err);
-      alert(err?.response?.data?.message || 'Assignment failed');
+    } catch (error) {
+      console.error(error);
+      alert(error?.response?.data?.message || 'Failed to assign employees');
     } finally {
       setAssigning(false);
     }
   };
 
+  // -----------------------------------------------------
+  // Reset everything on close
+  // -----------------------------------------------------
   const handleClose = () => {
     setQuery('');
     setResults([]);
@@ -73,7 +115,9 @@ export default function AssignEmployeesModal({ open, onClose, department, onSucc
 
   return (
     <Dialog fullWidth maxWidth="sm" open={open} onClose={handleClose}>
-      <DialogTitle>Assign Employees to {department?.name}</DialogTitle>
+      <DialogTitle>
+        Assign Employees to {department?.name || ''}
+      </DialogTitle>
 
       <DialogContent>
         <TextField
@@ -84,15 +128,30 @@ export default function AssignEmployeesModal({ open, onClose, department, onSucc
           margin="normal"
         />
 
-        {loading && <CircularProgress size={20} />}
+        {loading && (
+          <Box textAlign="center" my={1}>
+            <CircularProgress size={24} />
+          </Box>
+        )}
 
-        <List dense sx={{ maxHeight: 300, overflow: 'auto' }}>
-          {results.map((r) => (
-            <ListItem key={r.id} button onClick={() => toggleSelect(r.id)}>
-              <Checkbox checked={selected.has(r.id)} />
+        {!loading && results.length === 0 && query.length >= 2 && (
+          <Typography variant="body2" color="text.secondary">
+            No employees found.
+          </Typography>
+        )}
+
+        <List dense sx={{ maxHeight: 320, overflowY: 'auto', mt: 1 }}>
+          {results.map((emp) => (
+            <ListItem
+              key={emp.id}
+              button
+              onClick={() => toggleSelect(emp.id)}
+              sx={{ borderBottom: '1px solid #eee' }}
+            >
+              <Checkbox checked={selected.has(emp.id)} />
               <ListItemText
-                primary={r.full_name || `${r.first_name} ${r.last_name}`}
-                secondary={`${r.position_title || ''} — ${r.department_name || ''}`}
+                primary={emp.full_name}
+                secondary={`${emp.position} — ${emp.department}`}
               />
             </ListItem>
           ))}
@@ -104,8 +163,9 @@ export default function AssignEmployeesModal({ open, onClose, department, onSucc
 
         <Button
           variant="contained"
-          disabled={assigning || selected.size === 0}
           onClick={handleAssign}
+          disabled={assigning || selected.size === 0}
+          sx={{ background: '#1a365d', '&:hover': { background: '#2d4a70' } }}
         >
           {assigning ? 'Assigning...' : `Assign (${selected.size})`}
         </Button>

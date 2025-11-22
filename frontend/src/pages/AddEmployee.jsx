@@ -4,7 +4,7 @@
 
 // frontend/src/pages/AddEmployee.jsx
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation } from 'react-query'
 import {
@@ -20,6 +20,8 @@ import {
 import { Save, Cancel } from '@mui/icons-material'
 import { toast } from 'react-toastify'
 import employeeService from '../services/employeeService'
+import { getDepartments } from "../services/departmentsService";
+import { getPositions } from "../services/positionsService";
 import { primaryButtonStyle } from '../styles/buttonStyles'
 
 export default function AddEmployee() {
@@ -53,12 +55,34 @@ export default function AddEmployee() {
     currency: "KES",
   })
 
+  const [departments, setDepartments] = useState([]);
+  const [positions, setPositions] = useState([]);
   const [errors, setErrors] = useState({})
+
+  // -------------------- Load dropdowns ----------------------
+    useEffect(() => {
+      async function loadDropDowns() {
+        try {
+          const [deptRes, posRes] = await Promise.all([
+            getDepartments(),
+            getPositions()
+          ]);
+  
+          setDepartments(deptRes.data?.data || []);
+          setPositions(posRes.data?.data || []);
+  
+        } catch (err) {
+          toast.error("Failed to load dropdown data");
+        }
+      }
+  
+      loadDropDowns();
+    }, []);
 
   const createMutation = useMutation(employeeService.createEmployee, {
     onSuccess: () => {
       toast.success("Employee added successfully!")
-      navigate("/employees")
+      navigate("/employer/employees")
     },
     onError: (error) => {
       toast.error(error.response?.data?.message || "Failed to add employee")
@@ -101,7 +125,7 @@ export default function AddEmployee() {
     }
   }
 
-  const handleCancel = () => navigate("/employees")
+  const handleCancel = () => navigate("/employer/employees")
 
   // ------------------------ UI ------------------------
   return (
@@ -316,7 +340,8 @@ export default function AddEmployee() {
             {/* DEPT + POS */}
             <Grid item xs={12} sm={6} md={4}>
               <TextField
-                label="Department ID"
+                select
+                label="Department"
                 fullWidth
                 name="department_id"
                 value={formData.department_id}
@@ -324,12 +349,20 @@ export default function AddEmployee() {
                 error={!!errors.department_id}
                 helperText={errors.department_id}
                 required
-              />
+              >
+                {departments.map((dept) => (
+                  <MenuItem key={dept.id} value={dept.id}>
+                    {dept.name}
+                  </MenuItem>
+                ))}
+              </TextField>
             </Grid>
 
+            {/* ---------------- Position dropdown ---------------- */}
             <Grid item xs={12} sm={6} md={4}>
               <TextField
-                label="Position ID"
+                select
+                label="Position"
                 fullWidth
                 name="position_id"
                 value={formData.position_id}
@@ -337,7 +370,13 @@ export default function AddEmployee() {
                 error={!!errors.position_id}
                 helperText={errors.position_id}
                 required
-              />
+              >
+                {positions.map((pos) => (
+                  <MenuItem key={pos.id} value={pos.id}>
+                    {pos.title}
+                  </MenuItem>
+                ))}
+              </TextField>
             </Grid>
 
             {/* SALARY */}
