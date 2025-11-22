@@ -1,3 +1,5 @@
+// frontend/src/pages/Employees.jsx
+
 import { useState } from "react";
 import { useQuery } from "react-query";
 import { useNavigate } from "react-router-dom";
@@ -69,7 +71,7 @@ export default function Employees() {
         <Button
           variant="contained"
           startIcon={<Add />}
-          onClick={() => navigate('/employer/employees/new')}
+          onClick={() => navigate("/employer/employees/new")}
           sx={{
             bgcolor: "#1976d2",
             borderRadius: "6px",
@@ -156,7 +158,7 @@ export default function Employees() {
                     <IconButton
                       size="small"
                       onClick={() =>
-                        navigate(`/employer/employees/${employee.id}`)
+                        navigate(`/employer/employees/${employee.id}/edit`)
                       }
                       title="Edit Employee"
                     >

@@ -21,6 +21,7 @@ import Settings from './pages/Settings'
 import EmployeePortal from './pages/EmployeePortal'
 import Security from './pages/Security'
 import DepartmentsPage from './pages/DepartmentsPage'
+import EditEmployee from './pages/EditEmployee'
 
 
 // Employer route protection
@@ -75,6 +76,7 @@ function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="employees" element={<Employees />} />
           <Route path="employees/new" element={<AddEmployee />} />
+          <Route path="employees/:id/edit" element={<EditEmployee />} />
           <Route path="employees/:id" element={<EmployeeDetail />} />
           <Route path="recruitment" element={<Recruitment />} />
           <Route path="leave" element={<Leave />} />

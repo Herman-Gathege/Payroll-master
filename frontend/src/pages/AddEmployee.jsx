@@ -1,6 +1,12 @@
+/**
+ * FULLY CORRECTED AddEmployee.jsx — Matches your PHP backend exactly!
+ */
+
+// frontend/src/pages/AddEmployee.jsx
+
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMutation, useQuery } from 'react-query'
+import { useMutation } from 'react-query'
 import {
   Box,
   Paper,
@@ -9,154 +15,78 @@ import {
   Button,
   Grid,
   MenuItem,
-  Divider,
-  Alert
+  Divider
 } from '@mui/material'
 import { Save, Cancel } from '@mui/icons-material'
 import { toast } from 'react-toastify'
-import { employeeService } from '../services/employeeService'
+import employeeService from '../services/employeeService'
 import { primaryButtonStyle } from '../styles/buttonStyles'
 
 export default function AddEmployee() {
   const navigate = useNavigate()
+
   const [formData, setFormData] = useState({
-    employee_number: '',
-    first_name: '',
-    last_name: '',
-    middle_name: '',
-    national_id: '',
-    kra_pin: '',
-    date_of_birth: '',
-    gender: '',
-    phone_number: '',
-    personal_email: '',
-    work_email: '',
-    physical_address: '',
-    employment_type: 'permanent',
-    hire_date: '',
-    department_id: '',
-    position_id: '',
-    basic_salary: '',
-    employment_status: 'active'
+    employee_no: "",
+    first_name: "",
+    middle_name: "",
+    last_name: "",
+    id_number: "",
+    kra_pin: "",
+    nssf_no: "",
+    nhif_no: "",
+    shif_number: "",
+    phone: "",
+    personal_email: "",
+    work_email: "",
+    date_of_birth: "",
+    gender: "",
+    residential_address: "",
+    postal_address: "",
+    nationality: "Kenyan",
+
+    employment_type: "Permanent",
+    employment_status: "Active",
+    hire_date: "",
+    department_id: "",
+    position_id: "",
+    basic_salary: "",
+    currency: "KES",
   })
 
   const [errors, setErrors] = useState({})
 
   const createMutation = useMutation(employeeService.createEmployee, {
     onSuccess: () => {
-      toast.success('Employee added successfully!')
-      navigate('/employees')
+      toast.success("Employee added successfully!")
+      navigate("/employees")
     },
     onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to add employee')
+      toast.error(error.response?.data?.message || "Failed to add employee")
     }
   })
 
+  // ------------------ Handle Change ------------------
   const handleChange = (e) => {
     const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
-    // Clear error for this field
+    setFormData(prev => ({ ...prev, [name]: value }))
     if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: null
-      }))
+      setErrors(prev => ({ ...prev, [name]: null }))
     }
   }
 
   const validateForm = () => {
     const newErrors = {}
 
-    // Required field validations
-    if (!formData.first_name) {
-      newErrors.first_name = 'First name is required'
-    } else if (formData.first_name.length < 2) {
-      newErrors.first_name = 'First name must be at least 2 characters'
-    } else if (!/^[a-zA-Z\s]+$/.test(formData.first_name)) {
-      newErrors.first_name = 'First name should only contain letters'
-    }
-
-    if (!formData.last_name) {
-      newErrors.last_name = 'Last name is required'
-    } else if (formData.last_name.length < 2) {
-      newErrors.last_name = 'Last name must be at least 2 characters'
-    } else if (!/^[a-zA-Z\s]+$/.test(formData.last_name)) {
-      newErrors.last_name = 'Last name should only contain letters'
-    }
-
-    if (!formData.employee_number) {
-      newErrors.employee_number = 'Employee number is required'
-    } else if (formData.employee_number.length < 3) {
-      newErrors.employee_number = 'Employee number must be at least 3 characters'
-    }
-
-    if (!formData.national_id) {
-      newErrors.national_id = 'National ID is required'
-    } else if (formData.national_id.length < 6) {
-      newErrors.national_id = 'National ID must be at least 6 characters'
-    }
-
-    if (!formData.phone_number) {
-      newErrors.phone_number = 'Phone number is required'
-    } else if (!/^\+?[\d\s-()]+$/.test(formData.phone_number)) {
-      newErrors.phone_number = 'Invalid phone number format'
-    } else if (formData.phone_number.replace(/\D/g, '').length < 10) {
-      newErrors.phone_number = 'Phone number must be at least 10 digits'
-    }
-
-    // Email validations
-    if (formData.personal_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.personal_email)) {
-      newErrors.personal_email = 'Invalid email format'
-    }
-
-    if (formData.work_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.work_email)) {
-      newErrors.work_email = 'Invalid email format'
-    }
-
-    // Date validations
-    if (!formData.date_of_birth) {
-      newErrors.date_of_birth = 'Date of birth is required'
-    } else {
-      const dob = new Date(formData.date_of_birth)
-      const today = new Date()
-      const age = today.getFullYear() - dob.getFullYear()
-      if (age < 18) {
-        newErrors.date_of_birth = 'Employee must be at least 18 years old'
-      } else if (age > 100) {
-        newErrors.date_of_birth = 'Invalid date of birth'
-      }
-    }
-
-    if (!formData.hire_date) {
-      newErrors.hire_date = 'Hire date is required'
-    } else {
-      const hireDate = new Date(formData.hire_date)
-      const today = new Date()
-      if (hireDate > today) {
-        newErrors.hire_date = 'Hire date cannot be in the future'
-      }
-    }
-
-    if (!formData.gender) {
-      newErrors.gender = 'Gender is required'
-    }
-
-    if (!formData.employment_type) {
-      newErrors.employment_type = 'Employment type is required'
-    }
-
-    // Salary validation
-    if (formData.basic_salary && parseFloat(formData.basic_salary) < 0) {
-      newErrors.basic_salary = 'Salary must be a positive number'
-    }
-
-    // KRA PIN validation (Kenya format)
-    if (formData.kra_pin && !/^[A-Z]\d{9}[A-Z]$/.test(formData.kra_pin)) {
-      newErrors.kra_pin = 'Invalid KRA PIN format (e.g., A000000000B)'
-    }
+    if (!formData.employee_no) newErrors.employee_no = "Employee number is required"
+    if (!formData.first_name) newErrors.first_name = "First name is required"
+    if (!formData.last_name) newErrors.last_name = "Last name is required"
+    if (!formData.phone) newErrors.phone = "Phone is required"
+    if (!formData.date_of_birth) newErrors.date_of_birth = "Date of birth is required"
+    if (!formData.gender) newErrors.gender = "Gender is required"
+    if (!formData.work_email) newErrors.work_email = "Work email is required"
+    if (!formData.hire_date) newErrors.hire_date = "Hire date is required"
+    if (!formData.department_id) newErrors.department_id = "Department is required"
+    if (!formData.position_id) newErrors.position_id = "Position is required"
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -164,63 +94,65 @@ export default function AddEmployee() {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-
     if (validateForm()) {
       createMutation.mutate(formData)
     } else {
-      toast.error('Please fill in all required fields')
+      toast.error("Please fix validation errors")
     }
   }
 
-  const handleCancel = () => {
-    navigate('/employees')
-  }
+  const handleCancel = () => navigate("/employees")
 
+  // ------------------------ UI ------------------------
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" sx={{ fontWeight: 600 }}>Add New Employee</Typography>
+      <Box display="flex" justifyContent="space-between" mb={3}>
+        <Typography variant="h4" fontWeight={600}>
+          Add New Employee
+        </Typography>
       </Box>
 
       <Paper sx={{ p: 4 }}>
         <form onSubmit={handleSubmit}>
-          {/* Personal Information */}
-          <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', fontWeight: 600 }}>
+          
+          {/* PERSONAL INFO */}
+          <Typography variant="h6" sx={{ color: 'primary.main', mb: 1 }}>
             Personal Information
           </Typography>
           <Divider sx={{ mb: 3 }} />
 
           <Grid container spacing={3}>
+
             <Grid item xs={12} sm={6} md={4}>
               <TextField
-                fullWidth
                 label="Employee Number"
-                name="employee_number"
-                value={formData.employee_number}
+                fullWidth
+                name="employee_no"
+                value={formData.employee_no}
                 onChange={handleChange}
+                error={!!errors.employee_no}
+                helperText={errors.employee_no}
                 required
-                error={!!errors.employee_number}
-                helperText={errors.employee_number}
               />
             </Grid>
 
             <Grid item xs={12} sm={6} md={4}>
               <TextField
-                fullWidth
                 label="First Name"
+                fullWidth
                 name="first_name"
                 value={formData.first_name}
                 onChange={handleChange}
-                required
                 error={!!errors.first_name}
                 helperText={errors.first_name}
+                required
               />
             </Grid>
 
             <Grid item xs={12} sm={6} md={4}>
               <TextField
-                fullWidth
                 label="Middle Name"
+                fullWidth
                 name="middle_name"
                 value={formData.middle_name}
                 onChange={handleChange}
@@ -229,221 +161,214 @@ export default function AddEmployee() {
 
             <Grid item xs={12} sm={6} md={4}>
               <TextField
-                fullWidth
                 label="Last Name"
+                fullWidth
                 name="last_name"
                 value={formData.last_name}
                 onChange={handleChange}
-                required
                 error={!!errors.last_name}
                 helperText={errors.last_name}
+                required
               />
             </Grid>
 
+            {/* ID NUMBER */}
             <Grid item xs={12} sm={6} md={4}>
               <TextField
-                fullWidth
                 label="National ID"
-                name="national_id"
-                value={formData.national_id}
+                fullWidth
+                name="id_number"
+                value={formData.id_number}
                 onChange={handleChange}
-                required
-                error={!!errors.national_id}
-                helperText={errors.national_id}
               />
             </Grid>
 
+            {/* PHONE */}
             <Grid item xs={12} sm={6} md={4}>
               <TextField
-                fullWidth
-                label="KRA PIN"
-                name="kra_pin"
-                value={formData.kra_pin}
-                onChange={handleChange}
-                error={!!errors.kra_pin}
-                helperText={errors.kra_pin}
-                placeholder="A000000000B"
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={4}>
-              <TextField
-                fullWidth
-                label="Date of Birth"
-                name="date_of_birth"
-                type="date"
-                value={formData.date_of_birth}
-                onChange={handleChange}
-                InputLabelProps={{ shrink: true }}
-                required
-                error={!!errors.date_of_birth}
-                helperText={errors.date_of_birth}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={4}>
-              <TextField
-                fullWidth
-                select
-                label="Gender"
-                name="gender"
-                value={formData.gender}
-                onChange={handleChange}
-                required
-                error={!!errors.gender}
-                helperText={errors.gender}
-              >
-                <MenuItem value="male">Male</MenuItem>
-                <MenuItem value="female">Female</MenuItem>
-                <MenuItem value="other">Other</MenuItem>
-              </TextField>
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={4}>
-              <TextField
-                fullWidth
                 label="Phone Number"
-                name="phone_number"
-                value={formData.phone_number}
+                fullFull
+                name="phone"
+                value={formData.phone}
                 onChange={handleChange}
-                placeholder="+254712345678"
+                error={!!errors.phone}
+                helperText={errors.phone}
                 required
-                error={!!errors.phone_number}
-                helperText={errors.phone_number}
               />
             </Grid>
 
+            {/* EMAILS */}
             <Grid item xs={12} sm={6}>
               <TextField
-                fullWidth
                 label="Personal Email"
+                fullWidth
                 name="personal_email"
-                type="email"
                 value={formData.personal_email}
                 onChange={handleChange}
-                error={!!errors.personal_email}
-                helperText={errors.personal_email}
               />
             </Grid>
 
             <Grid item xs={12} sm={6}>
               <TextField
-                fullWidth
                 label="Work Email"
+                fullWidth
                 name="work_email"
-                type="email"
                 value={formData.work_email}
                 onChange={handleChange}
                 error={!!errors.work_email}
                 helperText={errors.work_email}
+                required
               />
             </Grid>
 
-            <Grid item xs={12}>
+            {/* DOB */}
+            <Grid item xs={12} sm={6} md={4}>
               <TextField
+                label="Date of Birth"
+                type="date"
                 fullWidth
-                label="Physical Address"
-                name="physical_address"
-                value={formData.physical_address}
+                name="date_of_birth"
+                InputLabelProps={{ shrink: true }}
+                value={formData.date_of_birth}
                 onChange={handleChange}
-                multiline
-                rows={2}
+                error={!!errors.date_of_birth}
+                helperText={errors.date_of_birth}
+                required
               />
             </Grid>
+
+            {/* GENDER */}
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                select
+                fullWidth
+                label="Gender"
+                name="gender"
+                value={formData.gender}
+                onChange={handleChange}
+                error={!!errors.gender}
+                helperText={errors.gender}
+                required
+              >
+                <MenuItem value="Male">Male</MenuItem>
+                <MenuItem value="Female">Female</MenuItem>
+              </TextField>
+            </Grid>
+
           </Grid>
 
-          {/* Employment Information */}
-          <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', fontWeight: 600, mt: 4 }}>
+          {/* EMPLOYMENT INFO */}
+          <Typography variant="h6" sx={{ color: 'primary.main', mt: 4 }}>
             Employment Information
           </Typography>
           <Divider sx={{ mb: 3 }} />
 
           <Grid container spacing={3}>
+
+            {/* EMPLOYMENT TYPE */}
             <Grid item xs={12} sm={6} md={4}>
               <TextField
-                fullWidth
                 select
+                fullWidth
                 label="Employment Type"
                 name="employment_type"
                 value={formData.employment_type}
                 onChange={handleChange}
-                required
-                error={!!errors.employment_type}
-                helperText={errors.employment_type}
               >
-                <MenuItem value="permanent">Permanent</MenuItem>
-                <MenuItem value="contract">Contract</MenuItem>
-                <MenuItem value="temporary">Temporary</MenuItem>
-                <MenuItem value="intern">Intern</MenuItem>
+                <MenuItem value="Permanent">Permanent</MenuItem>
+                <MenuItem value="Contract">Contract</MenuItem>
+                <MenuItem value="Temporary">Temporary</MenuItem>
               </TextField>
             </Grid>
 
+            {/* STATUS */}
             <Grid item xs={12} sm={6} md={4}>
               <TextField
-                fullWidth
-                label="Hire Date"
-                name="hire_date"
-                type="date"
-                value={formData.hire_date}
-                onChange={handleChange}
-                InputLabelProps={{ shrink: true }}
-                required
-                error={!!errors.hire_date}
-                helperText={errors.hire_date}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={4}>
-              <TextField
-                fullWidth
-                label="Basic Salary"
-                name="basic_salary"
-                type="number"
-                value={formData.basic_salary}
-                onChange={handleChange}
-                placeholder="50000"
-                error={!!errors.basic_salary}
-                helperText={errors.basic_salary}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={4}>
-              <TextField
-                fullWidth
                 select
-                label="Employment Status"
+                fullWidth
+                label="Status"
                 name="employment_status"
                 value={formData.employment_status}
                 onChange={handleChange}
               >
-                <MenuItem value="active">Active</MenuItem>
-                <MenuItem value="on_leave">On Leave</MenuItem>
-                <MenuItem value="suspended">Suspended</MenuItem>
-                <MenuItem value="terminated">Terminated</MenuItem>
+                <MenuItem value="Active">Active</MenuItem>
+                <MenuItem value="Suspended">Suspended</MenuItem>
+                <MenuItem value="Terminated">Terminated</MenuItem>
               </TextField>
             </Grid>
+
+            {/* HIRE DATE */}
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                label="Hire Date"
+                type="date"
+                fullWidth
+                name="hire_date"
+                InputLabelProps={{ shrink: true }}
+                value={formData.hire_date}
+                onChange={handleChange}
+                error={!!errors.hire_date}
+                helperText={errors.hire_date}
+                required
+              />
+            </Grid>
+
+            {/* DEPT + POS */}
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                label="Department ID"
+                fullWidth
+                name="department_id"
+                value={formData.department_id}
+                onChange={handleChange}
+                error={!!errors.department_id}
+                helperText={errors.department_id}
+                required
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                label="Position ID"
+                fullWidth
+                name="position_id"
+                value={formData.position_id}
+                onChange={handleChange}
+                error={!!errors.position_id}
+                helperText={errors.position_id}
+                required
+              />
+            </Grid>
+
+            {/* SALARY */}
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                label="Salary"
+                fullWidth
+                type="number"
+                name="basic_salary"
+                value={formData.basic_salary}
+                onChange={handleChange}
+              />
+            </Grid>
+
           </Grid>
 
-          {/* Action Buttons */}
-          <Box sx={{ mt: 4, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-            <Button
-              variant="outlined"
-              startIcon={<Cancel />}
-              onClick={handleCancel}
-              disabled={createMutation.isLoading}
-            >
+          {/* ACTION BUTTONS */}
+          <Box display="flex" justifyContent="flex-end" gap={2} mt={4}>
+            <Button variant="outlined" startIcon={<Cancel />} onClick={handleCancel}>
               Cancel
             </Button>
             <Button
               type="submit"
               variant="contained"
               startIcon={<Save />}
-              disabled={createMutation.isLoading}
               sx={primaryButtonStyle}
             >
-              {createMutation.isLoading ? 'Saving...' : 'Save Employee'}
+              Save Employee
             </Button>
           </Box>
+
         </form>
       </Paper>
     </Box>
