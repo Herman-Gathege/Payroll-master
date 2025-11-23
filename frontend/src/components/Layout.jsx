@@ -1,7 +1,6 @@
-// frontend/src/components/Layout.jsx
-
+// FULL UPDATED Layout.jsx with active menu highlighting
 import { useState } from 'react'
-import { Outlet, useNavigate } from 'react-router-dom'
+import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Box,
   Drawer,
@@ -43,7 +42,7 @@ const dashboardMenuItem = [
 ]
 
 const hrMenuItems = [
-   { text: 'Departments', icon: <CorporateFare />, path: '/employer/departments' },
+  { text: 'Departments', icon: <CorporateFare />, path: '/employer/departments' },
   { text: 'Employees', icon: <People />, path: '/employer/employees' },
   { text: 'Recruitment', icon: <Work />, path: '/employer/recruitment' },
   { text: 'Leave Management', icon: <EventAvailable />, path: '/employer/leave' },
@@ -73,24 +72,66 @@ export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [anchorEl, setAnchorEl] = useState(null)
   const navigate = useNavigate()
+  const location = useLocation()
   const { user, logout } = useAuth()
 
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen)
-  }
+  const isActive = (path) => location.pathname.startsWith(path)
 
-  const handleMenuOpen = (event) => {
-    setAnchorEl(event.currentTarget)
-  }
-
-  const handleMenuClose = () => {
-    setAnchorEl(null)
-  }
+  const handleDrawerToggle = () => setMobileOpen(!mobileOpen)
+  const handleMenuOpen = (event) => setAnchorEl(event.currentTarget)
+  const handleMenuClose = () => setAnchorEl(null)
 
   const handleLogout = async () => {
     await logout()
-    navigate('/employer/login')
+    navigate('/login')
   }
+
+  const renderMenuSection = (title, items) => (
+    <>
+      <Box sx={{ px: 2, pt: 1, pb: 1 }}>
+        <Typography variant="overline" sx={{ color: '#718096', fontWeight: 600, fontSize: 11 }}>
+          {title}
+        </Typography>
+      </Box>
+
+      <List sx={{ pt: 0 }}>
+        {items.map((item) => (
+          <ListItem key={item.text} disablePadding>
+            <ListItemButton
+              onClick={() => navigate(item.path)}
+              sx={{
+                borderLeft: isActive(item.path) ? '4px solid #d4af37' : '4px solid transparent',
+                backgroundColor: isActive(item.path) ? 'rgba(24, 35, 59, 0.1)' : 'transparent',
+                color: isActive(item.path) ? '#182d4bff' : 'inherit',
+                fontWeight: isActive(item.path) ? 600 : 400,
+                '&:hover': {
+                  backgroundColor: 'rgba(26, 54, 93, 0.05)',
+                  borderLeftColor: '#d4af37',
+                  color: '#1a365d'
+                }
+              }}
+            >
+              <ListItemIcon
+                sx={{
+                  minWidth: 40,
+                  color: isActive(item.path) ? '#182d4bff' : '#4a5568'
+                }}
+              >
+                {item.icon}
+              </ListItemIcon>
+
+              <ListItemText
+                primary={item.text}
+                primaryTypographyProps={{ fontWeight: isActive(item.path) ? 600 : 400 }}
+              />
+            </ListItemButton>
+          </ListItem>
+        ))}
+      </List>
+
+      <Divider sx={{ my: 1 }} />
+    </>
+  )
 
   const drawer = (
     <div>
@@ -112,11 +153,7 @@ export default function Layout() {
             <img
               src="/src/assets/lixnet2.png"
               alt="Lixnet Logo"
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'contain'
-              }}
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
             />
           </Box>
           <Typography variant="h5" noWrap component="div" sx={{ fontWeight: 700, letterSpacing: 1 }}>
@@ -124,150 +161,14 @@ export default function Layout() {
           </Typography>
         </Box>
       </Toolbar>
+
       <Divider />
 
-      {/* Dashboard Section */}
-      <Box sx={{ px: 2, pt: 2, pb: 1 }}>
-        <Typography variant="overline" sx={{ color: '#718096', fontWeight: 600, fontSize: 11 }}>
-          OVERVIEW
-        </Typography>
-      </Box>
-      <List sx={{ pt: 0 }}>
-        {dashboardMenuItem.map((item) => (
-          <ListItem key={item.text} disablePadding>
-            <ListItemButton
-              onClick={() => navigate(item.path)}
-              sx={{
-                borderLeft: '4px solid transparent',
-                '&:hover': {
-                  backgroundColor: 'rgba(26, 54, 93, 0.05)',
-                  borderLeftColor: '#d4af37',
-                  color: '#1a365d'
-                }
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
-
-      <Divider sx={{ my: 1 }} />
-
-      {/* HR Section */}
-      <Box sx={{ px: 2, pt: 1, pb: 1 }}>
-        <Typography variant="overline" sx={{ color: '#718096', fontWeight: 600, fontSize: 11 }}>
-          HUMAN RESOURCE
-        </Typography>
-      </Box>
-      <List sx={{ pt: 0 }}>
-        {hrMenuItems.map((item) => (
-          <ListItem key={item.text} disablePadding>
-            <ListItemButton
-              onClick={() => navigate(item.path)}
-              sx={{
-                borderLeft: '4px solid transparent',
-                '&:hover': {
-                  backgroundColor: 'rgba(26, 54, 93, 0.05)',
-                  borderLeftColor: '#d4af37',
-                  color: '#1a365d'
-                }
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
-
-      <Divider sx={{ my: 1 }} />
-
-      {/* Payroll Section */}
-      <Box sx={{ px: 2, pt: 1, pb: 1 }}>
-        <Typography variant="overline" sx={{ color: '#718096', fontWeight: 600, fontSize: 11 }}>
-          PAYROLL
-        </Typography>
-      </Box>
-      <List sx={{ pt: 0 }}>
-        {payrollMenuItems.map((item) => (
-          <ListItem key={item.text} disablePadding>
-            <ListItemButton
-              onClick={() => navigate(item.path)}
-              sx={{
-                borderLeft: '4px solid transparent',
-                '&:hover': {
-                  backgroundColor: 'rgba(26, 54, 93, 0.05)',
-                  borderLeftColor: '#d4af37',
-                  color: '#1a365d'
-                }
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
-
-      <Divider sx={{ my: 1 }} />
-
-      {/* Security Section */}
-      <Box sx={{ px: 2, pt: 1, pb: 1 }}>
-        <Typography variant="overline" sx={{ color: '#718096', fontWeight: 600, fontSize: 11 }}>
-          CONFIGURATION
-        </Typography>
-      </Box>
-      <List sx={{ pt: 0 }}>
-        {securityMenuItems.map((item) => (
-          <ListItem key={item.text} disablePadding>
-            <ListItemButton
-              onClick={() => navigate(item.path)}
-              sx={{
-                borderLeft: '4px solid transparent',
-                '&:hover': {
-                  backgroundColor: 'rgba(26, 54, 93, 0.05)',
-                  borderLeftColor: '#d4af37',
-                  color: '#1a365d'
-                }
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
-
-      <Divider sx={{ my: 1 }} />
-
-      {/* Employee Portal Section */}
-      <Box sx={{ px: 2, pt: 1, pb: 1 }}>
-        <Typography variant="overline" sx={{ color: '#718096', fontWeight: 600, fontSize: 11 }}>
-          EMPLOYEE SELF-SERVICE
-        </Typography>
-      </Box>
-      <List sx={{ pt: 0 }}>
-        {employeePortalMenuItem.map((item) => (
-          <ListItem key={item.text} disablePadding>
-            <ListItemButton
-              onClick={() => navigate(item.path)}
-              sx={{
-                borderLeft: '4px solid transparent',
-                '&:hover': {
-                  backgroundColor: 'rgba(26, 54, 93, 0.05)',
-                  borderLeftColor: '#d4af37',
-                  color: '#1a365d'
-                }
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
+      {renderMenuSection('OVERVIEW', dashboardMenuItem)}
+      {renderMenuSection('HUMAN RESOURCE', hrMenuItems)}
+      {renderMenuSection('PAYROLL', payrollMenuItems)}
+      {renderMenuSection('CONFIGURATION', securityMenuItems)}
+      {renderMenuSection('EMPLOYEE SELF-SERVICE', employeePortalMenuItem)}
     </div>
   )
 
@@ -291,20 +192,19 @@ export default function Layout() {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 600, color: '#2d3748' }}>
+
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
             Payroll Dashboard
           </Typography>
+
           <IconButton onClick={handleMenuOpen}>
             <Avatar sx={{ width: 32, height: 32, background: '#1a365d' }}>
               {user?.username?.charAt(0).toUpperCase()}
             </Avatar>
           </IconButton>
-          <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
-            onClose={handleMenuClose}
-          >
-            <MenuItem onClick={() => { handleMenuClose(); navigate('/employee-portal') }}>
+
+          <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
+            <MenuItem onClick={() => { handleMenuClose(); navigate('/employee/portal') }}>
               <AccountCircle sx={{ mr: 1 }} /> My Profile
             </MenuItem>
             <MenuItem onClick={handleLogout}>
@@ -313,10 +213,8 @@ export default function Layout() {
           </Menu>
         </Toolbar>
       </AppBar>
-      <Box
-        component="nav"
-        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-      >
+
+      <Box component="nav" sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}>
         <Drawer
           variant="temporary"
           open={mobileOpen}
@@ -329,25 +227,20 @@ export default function Layout() {
         >
           {drawer}
         </Drawer>
+
         <Drawer
           variant="permanent"
           sx={{
             display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+            '& .MuiDrawer-paper': {	boxSizing: 'border-box', width: drawerWidth },
           }}
           open
         >
           {drawer}
         </Drawer>
       </Box>
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          p: 3,
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-        }}
-      >
+
+      <Box component="main" sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` } }}>
         <Toolbar />
         <Outlet />
       </Box>
