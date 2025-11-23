@@ -213,5 +213,35 @@ class EmployeeController {
         $count = $row['count'] + 1;
         return 'EMP' . $year . str_pad($count, 4, '0', STR_PAD_LEFT);
     }
+
+    public function updateMyProfile() {
+    $userId = $_SESSION['employee_id'] ?? null;
+
+    if (!$userId) {
+        http_response_code(401);
+        echo json_encode(["message" => "Unauthorized"]);
+        return;
+    }
+
+    $input = json_decode(file_get_contents("php://input"), true);
+    $email = $input['email'] ?? null;
+    $phone = $input['phone'] ?? null;
+
+    if (!$email || !$phone) {
+        http_response_code(400);
+        echo json_encode(["message" => "Email and phone are required"]);
+        return;
+    }
+
+    $stmt = $this->conn->prepare("
+        UPDATE employees 
+        SET personal_email = ?, phone = ?
+        WHERE id = ?
+    ");
+    $stmt->execute([$email, $phone, $userId]);
+
+    echo json_encode(["message" => "Profile updated successfully"]);
+}
+
 }
 ?>

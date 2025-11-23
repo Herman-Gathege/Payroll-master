@@ -54,33 +54,46 @@ try {
 
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $q = "SELECT
-                e.id,
-                e.employee_no,
-                e.first_name,
-                e.middle_name,
-                e.last_name,
-                CONCAT(e.first_name, ' ', COALESCE(e.middle_name,''), ' ', e.last_name) AS full_name,
-                e.phone,
-                e.personal_email,
-                e.work_email,
-                e.photo,
-                e.department_id,
-                d.name AS department_name,
-                e.position_id,
-                p.title AS position_title,
-                e.manager_id,
-                CONCAT(m.first_name,' ',COALESCE(m.middle_name,''),' ',m.last_name) AS manager_name,
-                e.employment_status,
-                e.basic_salary,
-                e.currency,
-                e.hire_date,
-                e.created_at
-              FROM employees e
-              LEFT JOIN departments d ON d.id = e.department_id
-              LEFT JOIN positions p ON p.id = e.position_id
-              LEFT JOIN employees m ON m.id = e.manager_id
-              WHERE e.id = :id
-              LIMIT 1";
+        e.id,
+        e.employee_no,
+        e.first_name,
+        e.middle_name,
+        e.last_name,
+        CONCAT(e.first_name, ' ', COALESCE(e.middle_name,''), ' ', e.last_name) AS full_name,
+        e.phone,
+        e.personal_email,
+        e.work_email,
+        e.photo,
+
+        -- NEW FIELDS ADDED
+        e.residential_address,
+        e.postal_address,
+        e.county,
+        e.sub_county,
+        e.marital_status,
+        e.nationality,
+        e.date_of_birth,
+
+        e.department_id,
+        d.name AS department_name,
+        e.position_id,
+        p.title AS position_title,
+        e.manager_id,
+        CONCAT(m.first_name,' ',COALESCE(m.middle_name,''),' ',m.last_name) AS manager_name,
+
+        e.employment_status,
+        e.employment_type,
+        e.basic_salary,
+        e.currency,
+        e.hire_date,
+        e.created_at
+      FROM employees e
+      LEFT JOIN departments d ON d.id = e.department_id
+      LEFT JOIN positions p ON p.id = e.position_id
+      LEFT JOIN employees m ON m.id = e.manager_id
+      WHERE e.id = :id
+      LIMIT 1";
+
         $stmt = $db->prepare($q);
         $stmt->execute([':id' => $employee_id]);
         $emp = $stmt->fetch(PDO::FETCH_ASSOC);

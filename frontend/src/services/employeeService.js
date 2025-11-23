@@ -127,7 +127,20 @@ export const employeeService = {
       console.error('Error searching employees:', error)
       throw error
     }
-  }
+  },
+
+  updateMyProfile(data) {
+  const allowed = {
+    phone: data.phone,
+    personal_email: data.personal_email,
+    emergency_contact_name: data.emergency_contact_name,
+    emergency_contact_phone: data.emergency_contact_phone,
+  };
+  
+  return api.put(ESS_PROFILE, allowed);
+}
+
+
 }
 
 export default employeeService;
