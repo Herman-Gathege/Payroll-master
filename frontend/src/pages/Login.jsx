@@ -36,7 +36,8 @@ export default function Login() {
 
       // Check user role and navigate accordingly
       const userData = response.user
-      const role = userData.role
+      const role = userData.role || userData.user_type;
+
       
       // Employer roles: employer, admin, super_admin, hr_manager, payroll_officer, etc.
       if (role === 'employer' || role === 'admin' || role === 'super_admin' || 

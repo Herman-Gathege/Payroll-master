@@ -5,6 +5,13 @@
  * backend/api/employer/positions.php
  */
 
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+
+
+
 require_once '../../config/database_secure.php';
 require_once '../../middleware/SecurityMiddleware.php';
 
@@ -12,6 +19,9 @@ require_once '../../middleware/SecurityMiddleware.php';
 SecurityMiddleware::handleCORS();
 SecurityMiddleware::applySecurityHeaders();
 SecurityMiddleware::checkRateLimit('positions', 100, 60);
+
+
+
 
 $database = new Database();
 $db = $database->getConnection();
@@ -51,15 +61,24 @@ if ($request_method === 'GET') {
 
         // Get positions with employee count
         $query = "SELECT
-                    p.id, p.title, p.description, p.department_id, p.level, p.is_active, p.created_at,
-                    d.name as department_name,
-                    COUNT(e.id) as employee_count
-                  FROM positions p
-                  LEFT JOIN departments d ON p.department_id = d.id
-                  LEFT JOIN employees e ON p.id = e.position_id AND e.employment_status = 'active'
-                  WHERE p.organization_id = :organization_id
-                  GROUP BY p.id
-                  ORDER BY p.title";
+            p.id,
+            p.title,
+            p.description,
+            p.department_id,
+            p.level,
+            p.is_active,
+            p.created_at,
+            d.name AS department_name,
+            COUNT(e.id) AS employee_count
+        FROM positions p
+        LEFT JOIN departments d 
+            ON p.department_id = d.id
+        LEFT JOIN employees e 
+            ON p.id = e.position_id 
+            AND e.employment_status = 'active'
+        WHERE p.organization_id = :organization_id
+        GROUP BY p.id
+        ORDER BY p.title";
 
         $stmt = $db->prepare($query);
         $stmt->execute([':organization_id' => $organization_id]);
@@ -76,7 +95,7 @@ if ($request_method === 'GET') {
         echo json_encode([
             'success' => false,
             'message' => 'Failed to fetch positions',
-            'error' => Database::getConfig('app.debug') ? $e->getMessage() : 'Database error'
+            'error' => $e->getMessage()
         ]);
     }
 }
@@ -131,7 +150,7 @@ elseif ($request_method === 'POST') {
         echo json_encode([
             'success' => false,
             'message' => 'Failed to create position',
-            'error' => Database::getConfig('app.debug') ? $e->getMessage() : 'Database error'
+            'error' => $e->getMessage()
         ]);
     }
 }
@@ -202,7 +221,7 @@ elseif ($request_method === 'PUT') {
         echo json_encode([
             'success' => false,
             'message' => 'Failed to update position',
-            'error' => Database::getConfig('app.debug') ? $e->getMessage() : 'Database error'
+            'error' => $e->getMessage()
         ]);
     }
 }
@@ -264,7 +283,7 @@ elseif ($request_method === 'DELETE') {
         echo json_encode([
             'success' => false,
             'message' => 'Failed to delete position',
-            'error' => Database::getConfig('app.debug') ? $e->getMessage() : 'Database error'
+            'error' => $e->getMessage()
         ]);
     }
 }

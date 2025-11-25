@@ -9,27 +9,41 @@ export const authService = {
 
   try {
     const response = await api.post('/unified_auth.php', { username, password })
+    const data = response.data
 
-    // --- FIX: Save auth data ---
-    if (response.data?.token) {
-      localStorage.setItem('token', response.data.token)
+    if (!data?.success || !data.token || !data.user) {
+      throw new Error(data?.message || 'Login failed')
     }
 
-    if (response.data?.user_type) {
-      localStorage.setItem('userType', response.data.user_type)
+    // Save auth data
+    localStorage.setItem('token', data.token)
+    localStorage.setItem('user', JSON.stringify(data.user))
+
+    // Use backend-provided user_type
+    localStorage.setItem('userType', data.user.user_type)
+
+    // Save force_password_change if present
+    if (data.user.force_password_change !== undefined) {
+      localStorage.setItem(
+        'forcePasswordChange',
+        data.user.force_password_change.toString()
+      )
     }
 
-    if (response.data?.user) {
-      localStorage.setItem('user', JSON.stringify(response.data.user))
-    }
-    // ----------------------------
+    console.log('[authService.login] Stored auth info in localStorage:', {
+      token: localStorage.getItem('token'),
+      user: localStorage.getItem('user'),
+      userType: localStorage.getItem('userType'),
+      forcePasswordChange: localStorage.getItem('forcePasswordChange')
+    })
 
-    return response.data
+    return data
   } catch (error) {
     console.error('[authService.login] Error occurred:', error)
     throw error
   }
 },
+
 
   // Employer login (backward compatibility)
   employerLogin: async (username, password) => {

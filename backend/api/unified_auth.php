@@ -51,6 +51,7 @@ try {
             eu.organization_id, eu.is_active, eu.failed_login_attempts, eu.locked_until,
             eu.first_name, eu.last_name, eu.phone_number,
             o.organization_name, o.organization_code,
+            'employer' AS role,
             'employer' AS user_type
         FROM employer_users eu
         JOIN organizations o ON eu.organization_id = o.id
