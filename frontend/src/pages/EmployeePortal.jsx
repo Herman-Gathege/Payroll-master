@@ -1,3 +1,5 @@
+// frontend/src/pages/EmployeePortal.jsx
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "react-query";
@@ -57,6 +59,7 @@ import payrollService from "../services/payrollService";
 import leaveService from "../services/leaveService";
 import { useAuth } from "../contexts/AuthContext";
 import { primaryButtonStyle } from "../styles/buttonStyles";
+import  EmployeeDocuments  from "./employee/EmployeeDocuments";
 
 const drawerWidth = 240;
 
@@ -279,6 +282,7 @@ export default function EmployeePortal() {
     { id: "payslips", label: "Payslips", icon: <RequestQuote /> },
     { id: "leave", label: "Leave Management", icon: <EventAvailable /> },
     { id: "attendance", label: "Attendance", icon: <AccessTime /> },
+    { id: "documents", label: "My Documents", icon: <Download /> },
   ];
 
   const drawer = (
@@ -897,6 +901,13 @@ export default function EmployeePortal() {
                 </TableBody>
               </Table>
             </TableContainer>
+          </Paper>
+        )}
+
+        {/* Documents Tab */}
+        {activeTab === "documents" && (
+          <Paper sx={{ p: 3 }}>
+            <EmployeeDocuments />
           </Paper>
         )}
 

@@ -11,14 +11,17 @@ import {
   CardContent,
   Avatar,
   Divider,
-  Stack
+  Stack,
 } from "@mui/material";
 import employeeService from "../services/employeeService";
+import documentService from "../services/documentService";
 
 export default function EmployeeDetail() {
   const { id } = useParams();
   const [employee, setEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [documents, setDocuments] = useState([]);
+  const [loadingDocs, setLoadingDocs] = useState(true);
 
   useEffect(() => {
     async function load() {
@@ -32,6 +35,21 @@ export default function EmployeeDetail() {
       }
     }
     load();
+  }, [id]);
+
+  useEffect(() => {
+    async function loadDocs() {
+      try {
+        const res = await documentService.getEmployeeDocuments(id);
+        if (res.success) setDocuments(res.data);
+      } catch (error) {
+        console.error("Failed to load employee documents:", error);
+      } finally {
+        setLoadingDocs(false);
+      }
+    }
+
+    loadDocs();
   }, [id]);
 
   if (loading) return <CircularProgress />;
@@ -55,7 +73,9 @@ export default function EmployeeDetail() {
           borderRadius: 3,
         }}
       >
-        <Avatar sx={{ width: 70, height: 70, bgcolor: "primary.main", fontSize: 32 }}>
+        <Avatar
+          sx={{ width: 70, height: 70, bgcolor: "primary.main", fontSize: 32 }}
+        >
           {initials}
         </Avatar>
 
@@ -81,12 +101,24 @@ export default function EmployeeDetail() {
               <Divider sx={{ mb: 2 }} />
 
               <Stack spacing={1.2}>
-                <Typography><strong>Employee No:</strong> {employee.employee_no}</Typography>
-                <Typography><strong>Email:</strong> {employee.work_email}</Typography>
-                <Typography><strong>Phone:</strong> {employee.phone}</Typography>
-                <Typography><strong>DOB:</strong> {employee.date_of_birth}</Typography>
-                <Typography><strong>Gender:</strong> {employee.gender}</Typography>
-                <Typography><strong>Nationality:</strong> {employee.nationality}</Typography>
+                <Typography>
+                  <strong>Employee No:</strong> {employee.employee_no}
+                </Typography>
+                <Typography>
+                  <strong>Email:</strong> {employee.work_email}
+                </Typography>
+                <Typography>
+                  <strong>Phone:</strong> {employee.phone}
+                </Typography>
+                <Typography>
+                  <strong>DOB:</strong> {employee.date_of_birth}
+                </Typography>
+                <Typography>
+                  <strong>Gender:</strong> {employee.gender}
+                </Typography>
+                <Typography>
+                  <strong>Nationality:</strong> {employee.nationality}
+                </Typography>
               </Stack>
             </CardContent>
           </Card>
@@ -102,16 +134,96 @@ export default function EmployeeDetail() {
               <Divider sx={{ mb: 2 }} />
 
               <Stack spacing={1.2}>
-                <Typography><strong>Department:</strong> {employee.department_name}</Typography>
-                <Typography><strong>Position:</strong> {employee.position_title}</Typography>
-                <Typography><strong>Manager:</strong> {employee.manager_name}</Typography>
-                <Typography><strong>Status:</strong> {employee.employment_status}</Typography>
-                <Typography><strong>Employment Type:</strong> {employee.employment_type}</Typography>
                 <Typography>
-                  <strong>Salary:</strong> {employee.currency} {employee.basic_salary}
+                  <strong>Department:</strong> {employee.department_name}
                 </Typography>
-                <Typography><strong>Hire Date:</strong> {employee.hire_date}</Typography>
+                <Typography>
+                  <strong>Position:</strong> {employee.position_title}
+                </Typography>
+                <Typography>
+                  <strong>Manager:</strong> {employee.manager_name}
+                </Typography>
+                <Typography>
+                  <strong>Status:</strong> {employee.employment_status}
+                </Typography>
+                <Typography>
+                  <strong>Employment Type:</strong> {employee.employment_type}
+                </Typography>
+                <Typography>
+                  <strong>Salary:</strong> {employee.currency}{" "}
+                  {employee.basic_salary}
+                </Typography>
+                <Typography>
+                  <strong>Hire Date:</strong> {employee.hire_date}
+                </Typography>
               </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* EMPLOYEE DOCUMENTS */}
+        <Grid item xs={12}>
+          <Card sx={{ borderRadius: 3 }}>
+            <CardContent>
+              <Typography variant="h6" sx={{ mb: 1 }}>
+                Employee Documents
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+
+              {loadingDocs ? (
+                <CircularProgress />
+              ) : documents.length === 0 ? (
+                <Typography>No documents uploaded.</Typography>
+              ) : (
+                <Stack spacing={1.5}>
+                  {documents.map((doc) => {
+                    const FILE_BASE_URL =
+                      import.meta.env.VITE_API_BASE_URL.replace("/api", "");
+
+                    // Normalize path to avoid double slashes
+                    const normalizedPath = doc.file_path.startsWith("/")
+                      ? doc.file_path.substring(1)
+                      : doc.file_path;
+
+                    const fileUrl = `${FILE_BASE_URL}/${normalizedPath}`;
+
+                    return (
+                      <Box
+                        key={doc.id}
+                        sx={{
+                          p: 2,
+                          border: "1px solid #eee",
+                          borderRadius: 2,
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          bgcolor: "#fafafa",
+                        }}
+                      >
+                        <Box>
+                          <Typography fontWeight={600}>{doc.title}</Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Uploaded: {doc.uploaded_at}
+                          </Typography>
+                        </Box>
+
+                        <a
+                          href={fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{
+                            textDecoration: "none",
+                            color: "#1976d2",
+                            fontWeight: "bold",
+                          }}
+                        >
+                          View
+                        </a>
+                      </Box>
+                    );
+                  })}
+                </Stack>
+              )}
             </CardContent>
           </Card>
         </Grid>
