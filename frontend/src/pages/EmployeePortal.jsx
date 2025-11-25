@@ -279,10 +279,10 @@ export default function EmployeePortal() {
 
   const menuItems = [
     { id: "profile", label: "My Profile", icon: <Person /> },
+    { id: "documents", label: "My Documents", icon: <Download /> },
     { id: "payslips", label: "Payslips", icon: <RequestQuote /> },
     { id: "leave", label: "Leave Management", icon: <EventAvailable /> },
     { id: "attendance", label: "Attendance", icon: <AccessTime /> },
-    { id: "documents", label: "My Documents", icon: <Download /> },
   ];
 
   const drawer = (

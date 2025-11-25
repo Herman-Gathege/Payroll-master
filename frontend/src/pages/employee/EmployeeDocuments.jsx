@@ -15,7 +15,7 @@ import {
   Paper,
   IconButton,
 } from "@mui/material";
-import { UploadFile, Download } from "@mui/icons-material";
+import { UploadFile,  Visibility } from "@mui/icons-material";
 import documentService from "../../services/documentService";
 
 export default function EmployeeDocuments() {
@@ -140,7 +140,7 @@ export default function EmployeeDocuments() {
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        <Download />
+                        <Visibility />
                       </IconButton>
                     </TableCell>
                   </TableRow>
