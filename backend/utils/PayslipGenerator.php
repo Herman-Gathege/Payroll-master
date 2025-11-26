@@ -4,6 +4,7 @@ require_once __DIR__ . '/../config/payroll_config.php';
 /**
  * Payslip Generator
  * Generates payslip documents in HTML and PDF format
+ * backend/utils/PayslipGenerator.php
  */
 class PayslipGenerator {
     private $payslip_data;

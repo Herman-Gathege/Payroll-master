@@ -365,5 +365,26 @@ class PayrollController {
         $stmt->execute([$month, $year]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
+
+    // inside PayrollController class
+
+    public function getStructureForEmployee($employee_id) {
+        $stmt = $this->db->prepare("SELECT s.* FROM employee_salary_structure es JOIN salary_structures s ON s.id = es.structure_id WHERE es.employee_id = ? AND es.is_active = 1 LIMIT 1");
+        $stmt->execute([$employee_id]);
+        $structure = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$structure) return null;
+
+        $sid = $structure['id'];
+        $al = $this->db->prepare("SELECT id, name, amount, formula, taxable FROM salary_structure_allowances WHERE structure_id = :sid");
+        $al->execute([':sid' => $sid]);
+        $structure['allowances'] = $al->fetchAll(PDO::FETCH_ASSOC);
+
+        $bt = $this->db->prepare("SELECT id, name, amount, benefit_type, taxable, notes FROM salary_structure_benefits WHERE structure_id = :sid");
+        $bt->execute([':sid' => $sid]);
+        $structure['benefits'] = $bt->fetchAll(PDO::FETCH_ASSOC);
+
+        return $structure;
+    }
+
 }
 ?>

@@ -1,7 +1,7 @@
 // frontend/src/pages/EmployeeDetail.jsx
 
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   Box,
   Typography,
@@ -12,6 +12,7 @@ import {
   Avatar,
   Divider,
   Stack,
+  Button,
 } from "@mui/material";
 import employeeService from "../services/employeeService";
 import documentService from "../services/documentService";
@@ -22,6 +23,7 @@ export default function EmployeeDetail() {
   const [loading, setLoading] = useState(true);
   const [documents, setDocuments] = useState([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     async function load() {
@@ -87,6 +89,16 @@ export default function EmployeeDetail() {
             {employee.position_title} — {employee.department_name}
           </Typography>
         </Box>
+
+        <Button
+          variant="outlined"
+          sx={{ ml: "auto" }}
+          onClick={() =>
+            navigate(`/employer/employees/${employee.id}/salary-structure`)
+          }
+        >
+          Manage Salary Structure
+        </Button>
       </Card>
 
       {/* MAIN GRID */}

@@ -4,6 +4,7 @@ require_once __DIR__ . '/../config/payroll_config.php';
 /**
  * Payroll Report Generator
  * Generates various payroll reports
+ * backend/utils/PayrollReportGenerator.php
  */
 class PayrollReportGenerator {
     private $db;

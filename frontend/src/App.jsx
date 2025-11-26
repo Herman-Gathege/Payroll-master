@@ -1,53 +1,64 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
-import { ToastContainer } from 'react-toastify'
-import 'react-toastify/dist/ReactToastify.css'
-import { useAuth } from './contexts/AuthContext'
-import Layout from './components/Layout'
-import Login from './pages/Login'
-import OrganizationSignup from './pages/OrganizationSignup'
-import ChangePassword from './pages/ChangePassword'
-import Dashboard from './pages/Dashboard'
-import Employees from './pages/Employees'
-import AddEmployee from './pages/AddEmployee'
-import EmployeeDetail from './pages/EmployeeDetail'
-import Recruitment from './pages/Recruitment'
-import Leave from './pages/Leave'
-import Attendance from './pages/Attendance'
-import Payroll from './pages/Payroll'
-import Performance from './pages/Performance'
-import Training from './pages/Training'
-import Reports from './pages/Reports'
-import Settings from './pages/Settings'
-import EmployeePortal from './pages/EmployeePortal'
-import Security from './pages/Security'
-import DepartmentsPage from './pages/DepartmentsPage'
-import EditEmployee from './pages/EditEmployee'
-
+import { Routes, Route, Navigate } from "react-router-dom";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { useAuth } from "./contexts/AuthContext";
+import Layout from "./components/Layout";
+import Login from "./pages/Login";
+import OrganizationSignup from "./pages/OrganizationSignup";
+import ChangePassword from "./pages/ChangePassword";
+import Dashboard from "./pages/Dashboard";
+import Employees from "./pages/Employees";
+import AddEmployee from "./pages/AddEmployee";
+import EmployeeDetail from "./pages/EmployeeDetail";
+import Recruitment from "./pages/Recruitment";
+import Leave from "./pages/Leave";
+import Attendance from "./pages/Attendance";
+import Payroll from "./pages/Payroll";
+import Performance from "./pages/Performance";
+import Training from "./pages/Training";
+import Reports from "./pages/Reports";
+import Settings from "./pages/Settings";
+import EmployeePortal from "./pages/EmployeePortal";
+import Security from "./pages/Security";
+import DepartmentsPage from "./pages/DepartmentsPage";
+import EditEmployee from "./pages/EditEmployee";
+import SalaryStructuresList from "./pages/SalaryStructures/SalaryStructuresList";
+import SalaryStructureCreate from "./pages/SalaryStructures/SalaryStructureCreate";
+import SalaryStructureEdit from "./pages/SalaryStructures/SalaryStructureEdit";
+import EmployeeSalaryAssignment from "./pages/Employees/EmployeeSalaryAssignment";
 
 // Employer route protection
 function EmployerRoute({ children }) {
-  const { user, userType, loading } = useAuth()
-  
-  console.log('EmployerRoute check:', { user: !!user, userType, loading })
-  
+  const { user, userType, loading } = useAuth();
+
+  console.log("EmployerRoute check:", { user: !!user, userType, loading });
+
   if (loading) {
-    return <div>Loading...</div>
+    return <div>Loading...</div>;
   }
-  
-  return user && userType === 'employer' ? children : <Navigate to="/login" replace />
+
+  return user && userType === "employer" ? (
+    children
+  ) : (
+    <Navigate to="/login" replace />
+  );
 }
 
 // Employee route protection
 function EmployeeRoute({ children }) {
-  const { user, userType, loading } = useAuth()
-  
-  console.log('EmployeeRoute check:', { user: !!user, userType, loading })
-  
+  const { user, userType, loading } = useAuth();
+
+  console.log("EmployeeRoute check:", { user: !!user, userType, loading });
+
   if (loading) {
-    return <div>Loading...</div>
+    return <div>Loading...</div>;
   }
-  
-  return user && userType === 'employee' ? children : <Navigate to="/login" replace />
+
+  return user && userType === "employee" ? (
+    children
+  ) : (
+    <Navigate to="/login" replace />
+  );
 }
 
 function App() {
@@ -58,10 +69,16 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<OrganizationSignup />} />
         <Route path="/" element={<Navigate to="/login" />} />
-        
+
         {/* Legacy routes for backward compatibility */}
-        <Route path="/employer/login" element={<Navigate to="/login" replace />} />
-        <Route path="/employee/login" element={<Navigate to="/login" replace />} />
+        <Route
+          path="/employer/login"
+          element={<Navigate to="/login" replace />}
+        />
+        <Route
+          path="/employee/login"
+          element={<Navigate to="/login" replace />}
+        />
 
         {/* Employer Portal Routes */}
         <Route
@@ -87,6 +104,25 @@ function App() {
           <Route path="reports" element={<Reports />} />
           <Route path="settings" element={<Settings />} />
           <Route path="security" element={<Security />} />
+          <Route
+            path="/employer/salary-structures"
+            element={<SalaryStructuresList />}
+          />
+
+          <Route
+            path="/employer/salary-structures/create"
+            element={<SalaryStructureCreate />}
+          />
+
+          <Route
+            path="/employer/salary-structures/:id/edit"
+            element={<SalaryStructureEdit />}
+          />
+
+          <Route
+            path="/employer/employees/:id/salary-structure"
+            element={<EmployeeSalaryAssignment />}
+          />
           <Route index element={<Navigate to="dashboard" />} />
         </Route>
 
@@ -110,8 +146,7 @@ function App() {
       </Routes>
       <ToastContainer position="top-right" autoClose={3000} />
     </>
-  )
+  );
 }
 
-export default App
-
+export default App;

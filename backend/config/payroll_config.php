@@ -2,6 +2,7 @@
 /**
  * Payroll Configuration
  * Kenya Tax and Statutory Deductions - 2024
+ * backend/config/payroll_config.php
  */
 
 // Tax Rates

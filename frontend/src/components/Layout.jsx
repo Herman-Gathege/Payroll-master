@@ -1,4 +1,5 @@
 // FULL UPDATED Layout.jsx with active menu highlighting
+// frontend/src/components/Layout.jsx
 import { useState } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
