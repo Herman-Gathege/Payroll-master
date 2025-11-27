@@ -60,6 +60,8 @@ import leaveService from "../services/leaveService";
 import { useAuth } from "../contexts/AuthContext";
 import { primaryButtonStyle } from "../styles/buttonStyles";
 import  EmployeeDocuments  from "./employee/EmployeeDocuments";
+import MySalaryStructure from "./employee/MySalaryStructure";
+
 
 const drawerWidth = 240;
 
@@ -280,6 +282,7 @@ export default function EmployeePortal() {
   const menuItems = [
     { id: "profile", label: "My Profile", icon: <Person /> },
     { id: "documents", label: "My Documents", icon: <Download /> },
+    { id: "payslip", label: "My Salary", icon: <RequestQuote /> },
     { id: "payslips", label: "Payslips", icon: <RequestQuote /> },
     { id: "leave", label: "Leave Management", icon: <EventAvailable /> },
     { id: "attendance", label: "Attendance", icon: <AccessTime /> },
@@ -640,6 +643,13 @@ export default function EmployeePortal() {
               </Paper>
             </Grid>
           </Grid>
+        )}
+
+        {/* Documents Tab */}
+        {activeTab === "payslip" && (
+          <Paper sx={{ p: 3 }}>
+            <MySalaryStructure />
+          </Paper>
         )}
 
         {/* Payslips Tab */}

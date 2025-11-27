@@ -26,6 +26,7 @@ import SalaryStructuresList from "./pages/SalaryStructures/SalaryStructuresList"
 import SalaryStructureCreate from "./pages/SalaryStructures/SalaryStructureCreate";
 import SalaryStructureEdit from "./pages/SalaryStructures/SalaryStructureEdit";
 import EmployeeSalaryAssignment from "./pages/employee/EmployeeSalaryAssignment";
+import MySalaryStructure from "./pages/employee/MySalaryStructure";
 
 // Employer route protection
 function EmployerRoute({ children }) {
@@ -138,6 +139,15 @@ function App() {
           element={
             <EmployeeRoute>
               <ChangePassword />
+            </EmployeeRoute>
+          }
+        />
+
+        <Route
+          path="/employee/salary-structure"
+          element={
+            <EmployeeRoute>
+              <MySalaryStructure />
             </EmployeeRoute>
           }
         />

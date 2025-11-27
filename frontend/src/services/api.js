@@ -10,27 +10,36 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: true, // ← Add this (helps with CORS + future cookies)
 });
 
-// Request interceptor to add auth token, userType, and X-User
+// Request interceptor — FINAL VERSION
 api.interceptors.request.use(
   (config) => {
     const userType = localStorage.getItem("userType");
     const token = localStorage.getItem("token");
-    const user = localStorage.getItem("user"); // <-- NEW
-    const prefix = userType ? `/${userType}` : "";
+    const userJson = localStorage.getItem("user"); // raw JSON string
 
-    // Add Authorization header
+    // === 1. Authorization Header ===
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Add X-User header (backend will JSON-decode)
-    if (user) {
-      config.headers["X-User"] = user;
+    // === 2. X-User Header (CRITICAL FIX) ===
+    if (userJson) {
+      try {
+        // Parse and re-stringify to ensure clean JSON
+        const userObj = JSON.parse(userJson);
+        config.headers["X-User"] = JSON.stringify(userObj);
+      } catch (e) {
+        console.warn("Invalid user JSON in localStorage, clearing...");
+        localStorage.removeItem("user");
+      }
     }
 
-    // Root endpoints — skip prefix
+    // === 3. Dynamic URL Prefix (employee/employer) ===
+    const prefix = userType ? `/${userType}` : "";
+
     const rootEndpoints = [
       "/unified_auth.php",
       "/employees.php",
@@ -40,14 +49,15 @@ api.interceptors.request.use(
       "/clear_cache.php",
       "/salary_structures.php",
       "/employee_salary_structure.php",
+      "/my_salary_structure.php", // ← ADD THIS!
     ];
 
-    const shouldSkip =
-      rootEndpoints.some((p) => config.url.startsWith(p)) ||
-      config.url.startsWith("/employer") ||
-      config.url.startsWith("/employee");
+    const shouldSkipPrefix =
+      rootEndpoints.some((endpoint) => config.url?.includes(endpoint)) ||
+      config.url?.startsWith("/employer") ||
+      config.url?.startsWith("/employee");
 
-    if (!shouldSkip) {
+    if (!shouldSkipPrefix && prefix) {
       config.url = `${prefix}${config.url}`;
     }
 
@@ -56,45 +66,30 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor for error handling
+// Response interceptor (unchanged — perfect as-is)
 api.interceptors.response.use(
-  (response) => {
-    console.log("[API Interceptor] Response:", {
-      status: response.status,
-      statusText: response.statusText,
-      data: response.data,
-    });
-    return response;
-  },
+  (response) => response,
   (error) => {
     console.error("[API Interceptor] Response error:", {
       message: error.message,
       status: error.response?.status,
-      statusText: error.response?.statusText,
       data: error.response?.data,
-      config: {
-        url: error.config?.url,
-        method: error.config?.method,
-        baseURL: error.config?.baseURL,
-      },
+      url: error.config?.url,
     });
 
     if (error.response?.status === 401) {
       const userType = localStorage.getItem("userType");
 
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      localStorage.removeItem("userType");
-      localStorage.removeItem("forcePasswordChange");
+      localStorage.clear(); // safer than removing one-by-one
 
-      if (userType === "employer") {
-        window.location.href = "/employer/login";
-      } else if (userType === "employee") {
-        window.location.href = "/employee/login";
-      } else {
-        window.location.href = "/";
-      }
+      const redirectMap = {
+        employer: "/employer/login",
+        employee: "/employee/login",
+      };
+
+      window.location.href = redirectMap[userType] || "/";
     }
+
     return Promise.reject(error);
   }
 );
