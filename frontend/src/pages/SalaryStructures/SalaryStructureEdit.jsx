@@ -13,10 +13,14 @@ export default function SalaryStructureEdit() {
   const [form, setForm] = useState(null);
 
   useEffect(() => {
-    SalaryStructureService.get(id)
-      .then(res => setForm(res.data.structure))
-      .catch(() => toast.error('Failed to load structure.'));
-  }, [id]);
+  SalaryStructureService.get(id)
+    .then(res => {
+      const payload = res.data.structure || res.data.data || res.data;
+      setForm(payload);
+    })
+    .catch(() => toast.error('Failed to load structure.'));
+}, [id]);
+
 
   const submit = async () => {
     try {

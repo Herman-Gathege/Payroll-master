@@ -1,5 +1,5 @@
 // frontend/src/components/SalaryStructure/BenefitRow.jsx
-import { Box, TextField, IconButton, MenuItem, Checkbox } from '@mui/material';
+import { Box, TextField, IconButton, MenuItem, Checkbox, Typography } from '@mui/material';
 import { Delete } from '@mui/icons-material';
 
 export default function BenefitRow({ item, index, onChange, onDelete }) {

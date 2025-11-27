@@ -1,5 +1,5 @@
 // frontend/src/components/SalaryStructure/AllowanceRow.jsx
-import { Box, TextField, IconButton, Checkbox } from '@mui/material';
+import { Box, TextField, IconButton, Checkbox, Typography } from '@mui/material';
 import { Delete } from '@mui/icons-material';
 
 export default function AllowanceRow({ item, index, onChange, onDelete }) {
