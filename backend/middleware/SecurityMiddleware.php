@@ -5,7 +5,7 @@
  * backend/middleware/SecurityMiddleware.php
  */
 
-require_once __DIR__ . '/../config/database_secure.php';
+require_once __DIR__ . '/../config/database.php';
 
 class SecurityMiddleware {
 
@@ -17,9 +17,14 @@ class SecurityMiddleware {
         $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
         // Check if origin is allowed
-        if (in_array($origin, $config['allowed_origins']) || in_array('*', $config['allowed_origins'])) {
+        if ($origin) {
+            // browser request
             header("Access-Control-Allow-Origin: $origin");
+        } else {
+            // curl or non-browser request
+            header("Access-Control-Allow-Origin: *");
         }
+
 
         header("Access-Control-Allow-Credentials: " . ($config['allow_credentials'] ? 'true' : 'false'));
         header("Access-Control-Allow-Methods: " . implode(', ', $config['allowed_methods']));
@@ -304,4 +309,6 @@ class SecurityMiddleware {
 
         file_put_contents($logFile, json_encode($logEntry) . PHP_EOL, FILE_APPEND);
     }
+
+    
 }

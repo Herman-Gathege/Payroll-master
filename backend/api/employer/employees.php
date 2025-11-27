@@ -19,7 +19,7 @@
  * Uses employee_no (not employee_number) and full field set.
  */
 
-require_once '../../config/database_secure.php';
+require_once '../../config/database.php';
 require_once '../../middleware/SecurityMiddleware.php';
 
 // Headers / CORS

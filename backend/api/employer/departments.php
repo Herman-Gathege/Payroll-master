@@ -4,7 +4,7 @@
  * FINAL CLEAN VERSION — Matches your real SQL schema.
  */
 
-require_once '../../config/database_secure.php';
+require_once '../../config/database.php';
 require_once '../../middleware/SecurityMiddleware.php';
 
 // CORS + headers

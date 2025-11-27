@@ -1,3 +1,4 @@
+// frontend/src/components/SalaryStructure/AllowanceRow.jsx
 import { Box, TextField, IconButton, Checkbox } from '@mui/material';
 import { Delete } from '@mui/icons-material';
 

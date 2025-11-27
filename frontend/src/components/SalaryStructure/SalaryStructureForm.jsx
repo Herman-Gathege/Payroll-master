@@ -1,3 +1,4 @@
+// frontend/src/components/SalaryStructure/SalaryStructureForm.jsx
 import {
   Box,
   TextField,

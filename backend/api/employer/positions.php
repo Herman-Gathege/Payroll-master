@@ -12,7 +12,7 @@ error_reporting(E_ALL);
 
 
 
-require_once '../../config/database_secure.php';
+require_once '../../config/database.php';
 require_once '../../middleware/SecurityMiddleware.php';
 
 // Apply security measures

@@ -1,3 +1,4 @@
+// frontend/src/pages/SalaryStructures/SalaryStructuresList.jsx
 import { useQuery } from 'react-query';
 import { useNavigate } from 'react-router-dom';
 import {

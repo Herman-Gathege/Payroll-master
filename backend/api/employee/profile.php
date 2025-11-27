@@ -8,7 +8,7 @@
  * Note: Authentication uses employee_users token. SecurityMiddleware::verifyToken() must return user_type 'employee' and user_id.
  */
 
-require_once '../../config/database_secure.php';
+require_once '../../config/database.php';
 require_once '../../middleware/SecurityMiddleware.php';
 
 SecurityMiddleware::handleCORS();

@@ -45,5 +45,43 @@ class Database {
 
         return $this->conn;
     }
+
+    public static function getConfig($key = null) {
+        $default = [
+            'cors' => [
+                'allowed_origins' => ['*'],
+                'allow_credentials' => true,
+                'allowed_methods' => ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+                'allowed_headers' => ['Content-Type', 'Authorization', 'X-Requested-With', 'X-User'],
+                'max_age' => 86400
+            ],
+
+            'rate_limit' => [
+                'enabled' => false,
+                'max_requests' => 100,
+                'window' => 60
+            ],
+
+            'app' => [
+                'env' => EnvLoader::get('APP_ENV', 'development')
+            ],
+
+            'security' => [
+                'password_min_length' => 8,
+                'password_require_uppercase' => true,
+                'password_require_number' => true,
+                'password_require_special' => false
+            ],
+
+            'logging' => [
+                'enabled' => false,
+                'path' => __DIR__ . '/../storage/logs'
+            ]
+        ];
+
+        return $key ? ($default[$key] ?? []) : $default;
+    }
+
+    
 }
 ?>

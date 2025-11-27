@@ -4,7 +4,7 @@
  * Handles login for both employer and employee users
  */
 
-require_once '../config/database_secure.php';
+require_once '../config/database.php';
 require_once '../middleware/SecurityMiddleware.php';
 
 // Apply security & headers

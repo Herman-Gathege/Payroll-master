@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+// frontend/src/pages/employee/EmployeeSalaryAssignment.jsx
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import {
   Box,
   Paper,
@@ -8,39 +9,34 @@ import {
   TextField,
   Button,
   CircularProgress,
-} from '@mui/material';
+} from "@mui/material";
 
-import SalaryStructureService from '../../services/salaryStructureService';
-import employeeSalaryService from '../../services/employeeSalaryService';
-import { toast } from 'react-toastify';
+import SalaryStructureService from "../../services/salaryStructureService";
+import employeeSalaryService from "../../services/employeeSalaryService";
+import { toast } from "react-toastify";
 
 export default function EmployeeSalaryAssignment() {
   const { id: employeeId } = useParams();
 
   const [loading, setLoading] = useState(true);
   const [structures, setStructures] = useState([]);
-  const [selected, setSelected] = useState('');
+  const [selected, setSelected] = useState("");
   const [currentAssignment, setCurrentAssignment] = useState(null);
 
   useEffect(() => {
     Promise.all([
-      SalaryStructureService.list().then(res => res.data.structures),
-      employeeSalaryService.getEmployeeSalary(employeeId).then(res => res.data)
-    ])
-      .then(([allStructures, employee]) => {
-        setStructures(allStructures);
-
-        if (employee.assignment) {
-          setCurrentAssignment(employee.assignment);
-          setSelected(employee.assignment.structure_id);
-        }
-
-        setLoading(false);
-      })
-      .catch(() => {
-        toast.error("Failed to load salary structure assignment");
-        setLoading(false);
-      });
+      SalaryStructureService.list().then((res) => res.data.data), // <-- was res.data.structures
+      employeeSalaryService
+        .getEmployeeSalary(employeeId)
+        .then((res) => res.data.data),
+    ]).then(([allStructures, employee]) => {
+      setStructures(allStructures);
+      if (employee) {
+        setCurrentAssignment(employee); // adapt depending on actual structure
+        setSelected(employee.structure_id || "");
+      }
+      setLoading(false);
+    });
   }, [employeeId]);
 
   const handleAssign = () => {
@@ -48,7 +44,7 @@ export default function EmployeeSalaryAssignment() {
 
     const payload = {
       structure_id: selected,
-      effective_from: new Date().toISOString().split("T")[0]
+      effective_from: new Date().toISOString().split("T")[0],
     };
 
     employeeSalaryService
@@ -64,8 +60,8 @@ export default function EmployeeSalaryAssignment() {
 
     const payload = { structure_id: selected };
 
-    employeeSalaryService
-      .updateAssignment(currentAssignment.id, payload)
+    employeeSalaryService.updateAssignment(currentAssignment.assignment_id, payload)
+
       .then(() => toast.success("Updated successfully"))
       .catch(() => toast.error("Update failed"));
   };
@@ -88,10 +84,10 @@ export default function EmployeeSalaryAssignment() {
           select
           label="Select Salary Structure"
           value={selected}
-          onChange={e => setSelected(e.target.value)}
+          onChange={(e) => setSelected(e.target.value)}
           fullWidth
         >
-          {structures.map(s => (
+          {structures.map((s) => (
             <MenuItem key={s.id} value={s.id}>
               {s.title} — {s.basic_salary}
             </MenuItem>

@@ -1,3 +1,4 @@
+// frontend/src/pages/SalaryStructures/SalaryStructureEdit.jsx
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';

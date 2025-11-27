@@ -1,7 +1,7 @@
 <?php
 // backend/api/employee/documents.php
 
-require_once '../../config/database_secure.php';
+require_once '../../config/database.php';
 require_once '../../middleware/SecurityMiddleware.php';
 
 SecurityMiddleware::handleCORS();

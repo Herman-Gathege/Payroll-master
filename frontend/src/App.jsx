@@ -25,7 +25,7 @@ import EditEmployee from "./pages/EditEmployee";
 import SalaryStructuresList from "./pages/SalaryStructures/SalaryStructuresList";
 import SalaryStructureCreate from "./pages/SalaryStructures/SalaryStructureCreate";
 import SalaryStructureEdit from "./pages/SalaryStructures/SalaryStructureEdit";
-import EmployeeSalaryAssignment from "./pages/Employees/EmployeeSalaryAssignment";
+import EmployeeSalaryAssignment from "./pages/employee/EmployeeSalaryAssignment";
 
 // Employer route protection
 function EmployerRoute({ children }) {
@@ -95,6 +95,7 @@ function App() {
           <Route path="employees/new" element={<AddEmployee />} />
           <Route path="employees/:id/edit" element={<EditEmployee />} />
           <Route path="employees/:id" element={<EmployeeDetail />} />
+
           <Route path="recruitment" element={<Recruitment />} />
           <Route path="leave" element={<Leave />} />
           <Route path="attendance" element={<Attendance />} />
@@ -104,25 +105,22 @@ function App() {
           <Route path="reports" element={<Reports />} />
           <Route path="settings" element={<Settings />} />
           <Route path="security" element={<Security />} />
-          <Route
-            path="/employer/salary-structures"
-            element={<SalaryStructuresList />}
-          />
 
+          {/* FIXED ROUTES */}
+          <Route path="salary-structures" element={<SalaryStructuresList />} />
           <Route
-            path="/employer/salary-structures/create"
+            path="salary-structures/create"
             element={<SalaryStructureCreate />}
           />
-
           <Route
-            path="/employer/salary-structures/:id/edit"
+            path="salary-structures/:id/edit"
             element={<SalaryStructureEdit />}
           />
-
           <Route
-            path="/employer/employees/:id/salary-structure"
+            path="employees/:id/salary-structure"
             element={<EmployeeSalaryAssignment />}
           />
+
           <Route index element={<Navigate to="dashboard" />} />
         </Route>
 
