@@ -50,6 +50,7 @@ api.interceptors.request.use(
       "/salary_structures.php",
       "/employee_salary_structure.php",
       "/my_salary_structure.php", // ← ADD THIS!
+      "/calculate_payroll.php",
     ];
 
     const shouldSkipPrefix =

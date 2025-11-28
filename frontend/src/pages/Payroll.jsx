@@ -1,4 +1,3 @@
-// frontend/src/pages/Payroll.jsx
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "react-query";
 import {
@@ -44,7 +43,7 @@ export default function Payroll() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-  // Configuration state
+  // Configuration state (preserve existing UI)
   const [config, setConfig] = useState({
     personalRelief: 2400,
     nssfRate: 6,
@@ -62,21 +61,33 @@ export default function Payroll() {
     companyPhone: "+254 700 000000",
   });
 
+  // Employees list (unchanged)
   const { data: employeesData } = useQuery(
     "employees",
     employeeService.getAllEmployees
   );
   const employees = employeesData?.records || [];
 
+  // Payroll records for selected period (Option A: only existing payrolls)
+  const { data: payrollData, isLoading: payrollLoading } = useQuery(
+    ["payroll", selectedMonth, selectedYear],
+    () => payrollService.getPayroll(selectedMonth, selectedYear),
+    { refetchOnWindowFocus: false }
+  );
+
+  const payrollRecords = payrollData?.data || [];
+
+  // Generate bulk payroll mutation (unchanged behavior)
   const generatePayrollMutation = useMutation(
-    () => payrollService.generateBulkPayroll(selectedMonth, selectedYear),
+    (vars) => payrollService.generateBulkPayroll(vars.month, vars.year),
     {
-      onSuccess: () => {
+      onSuccess: (res) => {
         toast.success("Payroll generated successfully!");
-        queryClient.invalidateQueries("payroll");
+        queryClient.invalidateQueries(["payroll", selectedMonth, selectedYear]);
       },
-      onError: () => {
+      onError: (err) => {
         toast.error("Failed to generate payroll");
+        console.error(err);
       },
     }
   );
@@ -96,7 +107,7 @@ export default function Payroll() {
         `Generate payroll for ${getMonthName(selectedMonth)} ${selectedYear}?`
       )
     ) {
-      generatePayrollMutation.mutate();
+      generatePayrollMutation.mutate({ month: selectedMonth, year: selectedYear });
     }
   };
 
@@ -118,51 +129,63 @@ export default function Payroll() {
     return months[month - 1];
   };
 
-  const calculatePayrollPreview = (employee) => {
-    const basicSalary = parseFloat(employee.basic_salary) || 0;
-    const grossPay = basicSalary;
-
-    const nssf =
-      Math.min(grossPay, config.nssfUpperLimit) * (config.nssfRate / 100);
-    const shif = grossPay * (config.shifRate / 100);
-    const housingLevy = grossPay * (config.housingLevyRate / 100);
-
-    let paye = 0;
-    const taxablePay = grossPay - nssf;
-    if (taxablePay <= 24000) {
-      paye = taxablePay * 0.1;
-    } else if (taxablePay <= 32333) {
-      paye = 24000 * 0.1 + (taxablePay - 24000) * 0.25;
-    } else if (taxablePay <= 500000) {
-      paye = 24000 * 0.1 + 8333 * 0.25 + (taxablePay - 32333) * 0.3;
-    } else if (taxablePay <= 800000) {
-      paye =
-        24000 * 0.1 +
-        8333 * 0.25 +
-        467667 * 0.3 +
-        (taxablePay - 500000) * 0.325;
-    } else {
-      paye =
-        24000 * 0.1 +
-        8333 * 0.25 +
-        467667 * 0.3 +
-        300000 * 0.325 +
-        (taxablePay - 800000) * 0.35;
+  // Row actions
+  const handleApprove = async (payrollId) => {
+    try {
+      const res = await payrollService.approvePayroll(payrollId);
+      if (res.success) {
+        toast.success("Payroll approved");
+        queryClient.invalidateQueries(["payroll", selectedMonth, selectedYear]);
+      } else {
+        toast.error(res.message || "Failed to approve payroll");
+      }
+    } catch (e) {
+      toast.error("Failed to approve payroll");
     }
-    paye = Math.max(0, paye - config.personalRelief);
+  };
 
-    const totalDeductions = nssf + shif + housingLevy + paye;
-    const netPay = grossPay - totalDeductions;
+  const handleProcessPayment = async (payrollId) => {
+    try {
+      const res = await payrollService.processPayment(payrollId);
+      if (res.success) {
+        toast.success("Payment processed");
+        queryClient.invalidateQueries(["payroll", selectedMonth, selectedYear]);
+      } else {
+        toast.error(res.message || "Failed to process payment");
+      }
+    } catch (e) {
+      toast.error("Failed to process payment");
+    }
+  };
 
-    return {
-      grossPay: grossPay.toFixed(2),
-      nssf: nssf.toFixed(2),
-      shif: shif.toFixed(2),
-      housingLevy: housingLevy.toFixed(2),
-      paye: paye.toFixed(2),
-      totalDeductions: totalDeductions.toFixed(2),
-      netPay: netPay.toFixed(2),
-    };
+  const handleDownloadPayslip = async (employeeId, month, year) => {
+    try {
+      const resp = await payrollService.downloadPayslip(employeeId, month, year);
+      // resp is axios response with blob
+      const url = window.URL.createObjectURL(new Blob([resp.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `payslip_${employeeId}_${month}_${year}.html`); // backend returns HTML
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast.error("Failed to download payslip");
+    }
+  };
+
+  const handleEmailPayslip = async (employeeId, month, year) => {
+    try {
+      const res = await payrollService.sendPayslip(employeeId, month, year);
+      if (res.success) {
+        toast.success("Payslip emailed");
+      } else {
+        toast.error(res.message || "Failed to email payslip");
+      }
+    } catch (e) {
+      toast.error("Failed to email payslip");
+    }
   };
 
   return (
@@ -182,7 +205,7 @@ export default function Payroll() {
             size="small"
             label="Month"
             value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
+            onChange={(e) => setSelectedMonth(Number(e.target.value))}
             sx={{ width: 120 }}
           >
             {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
@@ -196,7 +219,7 @@ export default function Payroll() {
             size="small"
             label="Year"
             value={selectedYear}
-            onChange={(e) => setSelectedYear(e.target.value)}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
             sx={{ width: 100 }}
           >
             {[2024, 2025, 2026].map((year) => (
@@ -227,11 +250,7 @@ export default function Payroll() {
                   Payroll Period: {getMonthName(selectedMonth)} {selectedYear}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {
-                    employees.filter((e) => e.employment_status === "active")
-                      .length
-                  }{" "}
-                  active employees
+                  {payrollRecords.length} payroll records
                 </Typography>
               </Grid>
               <Grid item xs={12} md={6} sx={{ textAlign: "right" }}>
@@ -268,51 +287,67 @@ export default function Payroll() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {employees
-                  .filter((e) => e.employment_status === "active")
-                  .map((employee) => {
-                    const payroll = calculatePayrollPreview(employee);
+                {payrollLoading && (
+                  <TableRow>
+                    <TableCell colSpan={11} align="center">
+                      Loading payroll...
+                    </TableCell>
+                  </TableRow>
+                )}
+
+                {!payrollLoading && payrollRecords.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={11} align="center">
+                      No payroll records found for this period
+                    </TableCell>
+                  </TableRow>
+                )}
+
+                {!payrollLoading &&
+                  payrollRecords.map((row) => {
+                    const statusColor =
+                      row.status === "approved"
+                        ? "success"
+                        : row.status === "paid"
+                        ? "primary"
+                        : "warning";
                     return (
-                      <TableRow key={employee.id}>
-                        <TableCell>{employee.employee_number}</TableCell>
-                        <TableCell>{employee.full_name}</TableCell>
-                        <TableCell align="right">
-                          KES {payroll.grossPay}
-                        </TableCell>
-                        <TableCell align="right">KES {payroll.nssf}</TableCell>
-                        <TableCell align="right">KES {payroll.shif}</TableCell>
-                        <TableCell align="right">
-                          KES {payroll.housingLevy}
-                        </TableCell>
-                        <TableCell align="right">KES {payroll.paye}</TableCell>
-                        <TableCell align="right">
-                          KES {payroll.totalDeductions}
-                        </TableCell>
+                      <TableRow key={row.id}>
+                        <TableCell>{row.employee_number ?? row.employee_id}</TableCell>
+                        <TableCell>{row.employee_name ?? row.employee}</TableCell>
+                        <TableCell align="right">KES {parseFloat(row.gross_pay).toLocaleString()}</TableCell>
+                        <TableCell align="right">KES {parseFloat(row.nssf_employee || 0).toLocaleString()}</TableCell>
+                        <TableCell align="right">KES {parseFloat(row.shif || 0).toLocaleString()}</TableCell>
+                        <TableCell align="right">KES {parseFloat(row.housing_levy || 0).toLocaleString()}</TableCell>
+                        <TableCell align="right">KES {parseFloat(row.paye || 0).toLocaleString()}</TableCell>
+                        <TableCell align="right">KES {parseFloat(row.total_deductions || 0).toLocaleString()}</TableCell>
                         <TableCell align="right" sx={{ fontWeight: 600 }}>
-                          KES {payroll.netPay}
+                          KES {parseFloat(row.net_pay || 0).toLocaleString()}
                         </TableCell>
                         <TableCell align="center">
-                          <Chip label="Draft" size="small" color="warning" />
+                          <Chip label={row.status ?? 'draft'} size="small" color={statusColor} />
                         </TableCell>
                         <TableCell align="center">
-                          <IconButton size="small" title="Download Payslip">
+                          <IconButton size="small" title="Download Payslip" onClick={() => handleDownloadPayslip(row.employee_id, selectedMonth, selectedYear)}>
                             <Download />
                           </IconButton>
-                          <IconButton size="small" title="Email Payslip">
+                          <IconButton size="small" title="Email Payslip" onClick={() => handleEmailPayslip(row.employee_id, selectedMonth, selectedYear)}>
                             <Email />
                           </IconButton>
+                          {row.status !== 'approved' && (
+                            <IconButton size="small" title="Approve" onClick={() => handleApprove(row.id)}>
+                              <Check />
+                            </IconButton>
+                          )}
+                          {row.status === 'approved' && (
+                            <IconButton size="small" title="Mark Paid" onClick={() => handleProcessPayment(row.id)}>
+                              <SettingsIcon />
+                            </IconButton>
+                          )}
                         </TableCell>
                       </TableRow>
                     );
                   })}
-                {employees.filter((e) => e.employment_status === "active")
-                  .length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={11} align="center">
-                      No active employees found
-                    </TableCell>
-                  </TableRow>
-                )}
               </TableBody>
             </Table>
           </TableContainer>
