@@ -40,7 +40,7 @@ export default function SalaryStructureCreate() {
           variant="outlined"
           onClick={() => navigate("/employer/salary-structures")}
         >
-          Go to List
+          View Salary Structures
         </Button>
       </Box>
 
