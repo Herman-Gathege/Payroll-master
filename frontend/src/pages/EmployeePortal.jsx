@@ -59,9 +59,8 @@ import payrollService from "../services/payrollService";
 import leaveService from "../services/leaveService";
 import { useAuth } from "../contexts/AuthContext";
 import { primaryButtonStyle } from "../styles/buttonStyles";
-import  EmployeeDocuments  from "./employee/EmployeeDocuments";
+import EmployeeDocuments from "./employee/EmployeeDocuments";
 import MySalaryStructure from "./employee/MySalaryStructure";
-
 
 const drawerWidth = 240;
 
@@ -99,19 +98,15 @@ export default function EmployeePortal() {
   const currentEmployee =
     employeeData?.data || employeeData?.employee || employeeData;
 
-  // Fetch payroll data for this employee
-  const { data: payrollData } = useQuery(
-    ["employeePayroll", currentEmployee?.id],
-    () =>
-      currentEmployee
-        ? payrollService.getEmployeePayroll(currentEmployee.id)
-        : null,
-    {
-      enabled: !!currentEmployee?.id,
-    }
-  );
-
-  const payslips = payrollData?.records || [];
+  // Fetch only APPROVED or PAID payslips for this employee
+  const { 
+  data: payslips = [], 
+  isLoading: loadingPayslips 
+} = useQuery({
+  queryKey: ["myPayslips", currentEmployee?.id],
+  queryFn: payrollService.getMyPayslips,
+  enabled: !!currentEmployee?.id,
+});
 
   // Fetch leave requests from database
   const { data: leaveRequestsData } = useQuery(
@@ -655,70 +650,93 @@ export default function EmployeePortal() {
         {/* Payslips Tab */}
         {activeTab === "payslips" && (
           <Paper sx={{ p: 3 }}>
-            <Box
-              display="flex"
-              justifyContent="space-between"
-              alignItems="center"
-              mb={3}
-            >
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                My Payslips
-              </Typography>
-            </Box>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Period</TableCell>
-                    <TableCell align="right">Gross Pay</TableCell>
-                    <TableCell align="right">Net Pay</TableCell>
-                    <TableCell align="center">Status</TableCell>
-                    <TableCell align="center">Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {payslips.length > 0 ? (
-                    payslips.map((payslip) => (
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
+              My Payslips
+            </Typography>
+
+            {loadingPayslips ? (
+              <Box display="flex" justifyContent="center" py={5}>
+                <CircularProgress />
+              </Box>
+            ) : payslips.length > 0 ? (
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Period</TableCell>
+                      <TableCell>Employee #</TableCell>
+                      <TableCell align="right">Gross Pay</TableCell>
+                      <TableCell align="right">Net Pay</TableCell>
+                      <TableCell align="center">Status</TableCell>
+                      <TableCell align="center">Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {payslips.map((payslip) => (
                       <TableRow key={payslip.id}>
                         <TableCell>
-                          {new Date(payslip.period_month, 0).toLocaleString(
-                            "default",
-                            { month: "long" }
-                          )}{" "}
-                          {payslip.period_year}
+                          {new Date(
+                            payslip.period_year,
+                            payslip.period_month - 1
+                          ).toLocaleString("default", {
+                            month: "long",
+                            year: "numeric",
+                          })}
+                        </TableCell>
+                        <TableCell>
+                          <strong>#{payslip.employee_no}</strong>
                         </TableCell>
                         <TableCell align="right">
-                          KES{" "}
-                          {parseFloat(payslip.gross_pay || 0).toLocaleString()}
+                          KES {parseFloat(payslip.gross_pay).toLocaleString()}
                         </TableCell>
-                        <TableCell align="right">
-                          KES{" "}
-                          {parseFloat(payslip.net_pay || 0).toLocaleString()}
+                        <TableCell align="right" sx={{ fontWeight: 600 }}>
+                          KES {parseFloat(payslip.net_pay).toLocaleString()}
                         </TableCell>
                         <TableCell align="center">
-                          <Chip label="Paid" color="success" size="small" />
-                        </TableCell>
-                        <TableCell align="center">
-                          <IconButton
+                          <Chip
+                            label={
+                              payslip.status === "paid" ? "PAID" : "APPROVED"
+                            }
+                            color={
+                              payslip.status === "paid" ? "success" : "primary"
+                            }
                             size="small"
-                            color="primary"
-                            onClick={() => handleDownloadPayslip(payslip.id)}
+                          />
+                        </TableCell>
+                        <TableCell align="center">
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<Download />}
+                            onClick={() => {
+                              payrollService.downloadPayslip(
+                                currentEmployee.id,
+                                payslip.period_month,
+                                payslip.period_year
+                              );
+                            }}
                           >
-                            <Download />
-                          </IconButton>
+                            Download
+                          </Button>
                         </TableCell>
                       </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={5} align="center">
-                        No payslips available
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            ) : (
+              <Paper
+                sx={{ p: 8, textAlign: "center", backgroundColor: "#f9f9f9" }}
+              >
+                <RequestQuote sx={{ fontSize: 60, color: "#ccc", mb: 2 }} />
+                <Typography variant="h6" color="text.secondary">
+                  No payslips available yet
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Your payslips will appear here once payroll is approved.
+                </Typography>
+              </Paper>
+            )}
           </Paper>
         )}
 

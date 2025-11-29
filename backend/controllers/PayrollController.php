@@ -45,31 +45,9 @@ class PayrollController {
             ----------------------------------------------------- */
             $calc = CalculationService::calculateFromGross($earnings['gross_pay']);
 
-            // $deductions = [
-            //     'paye'              => $calc['paye'],
-            //     'nssf_employee'     => $calc['nssf_employee'],
-            //     'nssf_employer'     => $calc['nssf_employer'], // kept for reporting
-            //     'shif'              => $calc['shif'],
-            //     'housing_levy'      => $calc['housing_levy'],
-            //     'personal_relief'   => $calc['personal_relief'],
-            //     'total_deductions'  => $calc['total_deductions'],
-            //     'net_salary'        => $calc['net_salary']
-            // ];
+            
 
-            // $net_pay = $calc['net_salary'];
-
-            // /* -----------------------------------------------------
-            //     5. Save payroll to DB
-            // ----------------------------------------------------- */          
-
-            // $payroll_data = array_merge($earnings, $deductions, [
-            //     'employee_id'  => $employee_id,
-            //     'period_month' => $month,
-            //     'period_year'  => $year,
-            //     'net_pay'      => $net_pay
-            // ]);
-
-                        // Use net_pay consistently — match the database column
+            // Use net_pay consistently — match the database column
             $deductions = [
                 'paye'              => $calc['paye'],
                 'nssf_employee'     => $calc['nssf_employee'],
@@ -156,54 +134,7 @@ class PayrollController {
      */
     // private function calculateEarnings($structure, $attendance) {
 
-    //     $basic = floatval($structure['basic_salary']);
-
-    //     /* -----------------------------------------------------
-    //         Sum allowances & benefits from structure
-    //     ----------------------------------------------------- */
-    //     $allowances_total = 0;
-    //     foreach ($structure['allowances'] as $al) {
-    //         $allowances_total += floatval($al['amount']);
-    //     }
-
-    //     $benefits_total = 0;
-    //     foreach ($structure['benefits'] as $b) {
-    //         $benefits_total += floatval($b['amount']);
-    //     }
-
-    //     /* -----------------------------------------------------
-    //         Overtime
-    //     ----------------------------------------------------- */
-    //     $overtime_hours = floatval($attendance['overtime_hours'] ?? 0);
-    //     $hourly_rate = $basic / 160; // 160 hrs per month
-    //     $overtime_pay = $overtime_hours * $hourly_rate * 1.5;
-
-    //     /* -----------------------------------------------------
-    //         Absence deduction
-    //     ----------------------------------------------------- */
-    //     $abs_days = intval($attendance['absent_days'] ?? 0);
-    //     $daily_rate = $basic / 22;
-    //     $absence_deduction = $abs_days * $daily_rate;
-
-    //     /* -----------------------------------------------------
-    //         Gross Pay
-    //     ----------------------------------------------------- */
-    //     $gross = $basic + $allowances_total + $benefits_total + $overtime_pay - $absence_deduction;
-
-    //     return [
-    //         'basic_salary' => $basic,
-    //         'total_allowances' => $allowances_total,
-    //         'total_benefits' => $benefits_total,
-
-    //         'overtime_hours' => $overtime_hours,
-    //         'overtime_pay' => round($overtime_pay, 2),
-
-    //         'absent_days' => $abs_days,
-    //         'absence_deduction' => round($absence_deduction, 2),
-
-    //         'gross_pay' => round($gross, 2)
-    //     ];
-    // }
+   
 
     private function calculateEarnings($structure, $attendance) {
     $basic = floatval($structure['basic_salary']);
@@ -415,6 +346,26 @@ public function getPayrollSummary($month, $year)
             'total_net'         => floatval($summary['total_net'])
         ]
     ];
+}
+
+
+    /**
+     * approve payroll
+     */
+public function approvePayroll($payroll_id) {
+    try {
+        $stmt = $this->db->prepare("
+            UPDATE payroll 
+            SET status = 'finalized'
+            WHERE id = ? AND status = 'draft'
+        ");
+        $stmt->execute([$payroll_id]);
+        
+        return $stmt->rowCount() > 0;
+    } catch (Exception $e) {
+        error_log("Approve payroll error: " . $e->getMessage());
+        return false;
+    }
 }
 
 

@@ -1,26 +1,92 @@
 <?php
-
 /**
  * backend/api/payroll.php
  */
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-
-$allowed_origins = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173'
-];
+$allowed_origins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
 
 if (in_array($origin, $allowed_origins)) {
     header("Access-Control-Allow-Origin: $origin");
 }
-
 header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-User, x-user, Origin, Accept");
-
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-User, x-user");
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
+    exit();
+}
+
+/* ========================================
+   TOKEN AUTHENTICATION — YOUR REAL SYSTEM
+   ======================================== */
+$authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+if (!preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'message' => 'Missing token']);
+    exit();
+}
+$token = $matches[1];
+
+require_once __DIR__ . '/../config/database.php';
+$database = new Database();
+$db = $database->getConnection();
+
+// Verify token and get user
+$stmt = $db->prepare("
+    SELECT us.user_type, us.user_id, eu.employee_id
+    FROM user_sessions us
+    LEFT JOIN employee_users eu ON us.user_id = eu.id AND us.user_type = 'employee'
+    WHERE us.session_token = ? AND us.is_active = 1 AND us.expires_at > NOW()
+");
+$stmt->execute([$token]);
+$session = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$session) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'message' => 'Invalid or expired token']);
+    exit();
+}
+
+$user_type   = $session['user_type'];
+$user_id     = $session['user_id'];
+$employee_id = $session['employee_id'] ?? null;
+
+/* ========================================
+   NEW: MY PAYSLIPS (Employee Self-Service)
+   ======================================== */
+if (isset($_GET['action']) && $_GET['action'] === 'my_payslips') {
+    if ($user_type !== 'employee' || !$employee_id) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Access denied']);
+        exit();
+    }
+
+    $stmt = $db->prepare("
+        SELECT 
+            p.id,
+            p.period_month,
+            p.period_year,
+            p.gross_pay,
+            p.total_deductions,
+            p.net_pay,
+            p.status,
+            e.employee_no,
+            e.first_name,
+            e.last_name
+        FROM payroll p
+        JOIN employees e ON p.employee_id = e.id
+        WHERE p.employee_id = ? 
+          AND p.status IN ('finalized', 'paid')
+        ORDER BY p.period_year DESC, p.period_month DESC
+    ");
+    $stmt->execute([$employee_id]);
+    $payslips = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    echo json_encode([
+        'success' => true,
+        'data'    => $payslips
+    ]);
     exit();
 }
 
