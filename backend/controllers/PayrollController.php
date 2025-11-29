@@ -247,5 +247,94 @@ class PayrollController {
 
         return $structure;
     }
+
+    public function getPayrollByPeriod($month, $year) {
+    $stmt = $this->db->prepare("
+        SELECT 
+            p.*, 
+            e.first_name, 
+            e.last_name, 
+            e.id_number AS national_id
+        FROM payroll p
+        JOIN employees e ON e.id = p.employee_id
+        WHERE p.period_month = ?
+        AND p.period_year = ?
+        ORDER BY e.first_name ASC
+    ");
+    
+    $stmt->execute([$month, $year]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    return [
+        'success' => true,
+        'data' => $rows
+    ];
+}
+
+
+public function getPayslip($employee_id, $month, $year)
+{
+    $sql = "
+        SELECT 
+            p.*,
+            e.first_name,
+            e.last_name,
+            e.id_number AS national_id,
+            e.work_email,
+            e.personal_email
+        FROM payroll p
+        JOIN employees e ON e.id = p.employee_id
+        WHERE p.employee_id = :employee_id
+        AND p.period_month = :month
+        AND p.period_year = :year
+        LIMIT 1
+    ";
+
+    $stmt = $this->db->prepare($sql);
+    $stmt->execute([
+        ':employee_id' => $employee_id,
+        ':month' => $month,
+        ':year' => $year
+    ]);
+
+    $payslip = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    return $payslip ?: null;
+}
+
+
+public function getPayrollSummary($month, $year)
+{
+    $sql = "
+        SELECT 
+            COUNT(*) AS employee_count,
+            SUM(gross_pay) AS total_gross,
+            SUM(total_deductions) AS total_deductions,
+            SUM(net_pay) AS total_net
+        FROM payroll
+        WHERE period_month = :month
+        AND period_year = :year
+    ";
+
+    $stmt = $this->db->prepare($sql);
+    $stmt->execute([
+        ':month' => $month,
+        ':year' => $year
+    ]);
+
+    $summary = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    return [
+        'success' => true,
+        'summary' => [
+            'employee_count'    => intval($summary['employee_count']),
+            'total_gross'       => floatval($summary['total_gross']),
+            'total_deductions'  => floatval($summary['total_deductions']),
+            'total_net'         => floatval($summary['total_net'])
+        ]
+    ];
+}
+
+
 }
 ?>

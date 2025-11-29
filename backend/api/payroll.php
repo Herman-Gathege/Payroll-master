@@ -4,10 +4,27 @@
  * backend/api/payroll.php
  */
 
-header("Access-Control-Allow-Origin: *");
-header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE");
-header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+$allowed_origins = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173'
+];
+
+if (in_array($origin, $allowed_origins)) {
+    header("Access-Control-Allow-Origin: $origin");
+}
+
+header("Access-Control-Allow-Credentials: true");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-User, x-user, Origin, Accept");
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
+
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../controllers/PayrollController.php';
@@ -68,10 +85,8 @@ function handleGet($payrollController, $db) {
             $year = $_GET['year'] ?? date('Y');
             $payroll = $payrollController->getPayrollByPeriod($month, $year);
 
-            echo json_encode([
-                'success' => true,
-                'data' => $payroll
-            ]);
+            echo json_encode($payroll);
+
             break;
 
         case 'get_payslip':
@@ -102,10 +117,8 @@ function handleGet($payrollController, $db) {
             $year = $_GET['year'] ?? date('Y');
             $summary = $payrollController->getPayrollSummary($month, $year);
 
-            echo json_encode([
-                'success' => true,
-                'data' => $summary
-            ]);
+            echo json_encode($summary);
+
             break;
 
         case 'download_payslip':
@@ -177,6 +190,7 @@ function handlePost($payrollController, $db) {
     $action = $data['action'] ?? '';
 
     switch ($action) {
+
         case 'generate_payroll':
             // Generate payroll for a single employee
             $employee_id = $data['employee_id'] ?? 0;
@@ -197,16 +211,14 @@ function handlePost($payrollController, $db) {
             break;
 
         case 'send_payslip':
-            // Send payslip via email to employee
             require_once __DIR__ . '/../utils/EmailService.php';
-            
+
             $employee_id = $data['employee_id'] ?? 0;
             $month = $data['month'] ?? date('m');
             $year = $data['year'] ?? date('Y');
-            
-            // Get payslip data
+
+            // Load payslip
             $payslip = $payrollController->getPayslip($employee_id, $month, $year);
-            
             if (!$payslip) {
                 echo json_encode([
                     'success' => false,
@@ -214,11 +226,11 @@ function handlePost($payrollController, $db) {
                 ]);
                 break;
             }
-            
-            // Get employee email from database
-            $query = "SELECT e.work_email, e.personal_email, 
-                      CONCAT(e.first_name, ' ', e.last_name) as full_name,
-                      o.organization_name
+
+            // Load employee email + details
+            $query = "SELECT e.work_email, e.personal_email,
+                        CONCAT(e.first_name, ' ', e.last_name) as full_name,
+                        o.organization_name
                       FROM employees e
                       JOIN organizations o ON e.organization_id = o.id
                       WHERE e.id = :employee_id";
@@ -226,7 +238,7 @@ function handlePost($payrollController, $db) {
             $stmt->bindParam(':employee_id', $employee_id);
             $stmt->execute();
             $employee = $stmt->fetch(PDO::FETCH_ASSOC);
-            
+
             if (!$employee) {
                 echo json_encode([
                     'success' => false,
@@ -234,10 +246,9 @@ function handlePost($payrollController, $db) {
                 ]);
                 break;
             }
-            
-            // Use work email, fallback to personal email
+
+            // Select best email
             $to_email = $employee['work_email'] ?: $employee['personal_email'];
-            
             if (!$to_email) {
                 echo json_encode([
                     'success' => false,
@@ -245,22 +256,22 @@ function handlePost($payrollController, $db) {
                 ]);
                 break;
             }
-            
-            // Prepare payroll data for email
+
+            // Prepare payslip summary for email
             $payroll_data = [
                 'period' => date('F Y', mktime(0, 0, 0, $month, 1, $year)),
                 'gross_pay' => $payslip['gross_pay'],
                 'total_deductions' => $payslip['total_deductions'],
                 'net_pay' => $payslip['net_pay']
             ];
-            
+
             // Send email
             try {
                 $emailService = new EmailService();
                 $result = $emailService->sendPayslip($to_email, $employee['full_name'], $payroll_data);
-                
+
                 if ($result['success']) {
-                    // Log email sent in audit trail
+                    // Log email in audit log
                     $audit_query = "INSERT INTO audit_log (
                         user_id, user_type, action, table_name, record_id,
                         new_values, ip_address, user_agent
@@ -268,7 +279,7 @@ function handlePost($payrollController, $db) {
                         :user_id, 'system', 'payslip_emailed', 'payroll_records', :record_id,
                         :new_values, :ip_address, :user_agent
                     )";
-                    
+
                     $audit_stmt = $db->prepare($audit_query);
                     $audit_stmt->execute([
                         ':user_id' => 0,
@@ -282,9 +293,9 @@ function handlePost($payrollController, $db) {
                         ':user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown'
                     ]);
                 }
-                
+
                 echo json_encode($result);
-                
+
             } catch (Exception $e) {
                 echo json_encode([
                     'success' => false,
@@ -292,19 +303,6 @@ function handlePost($payrollController, $db) {
                 ]);
             }
 
-            $payslip = $payrollController->getPayslip($employee_id, $month, $year);
-
-            if ($payslip) {
-                $generator = new PayslipGenerator($payslip);
-                $result = $generator->sendEmail($email);
-                echo json_encode($result);
-            } else {
-                http_response_code(404);
-                echo json_encode([
-                    'success' => false,
-                    'message' => 'Payslip not found'
-                ]);
-            }
             break;
 
         default:
@@ -316,6 +314,7 @@ function handlePost($payrollController, $db) {
             break;
     }
 }
+
 
 /**
  * Handle PUT requests
