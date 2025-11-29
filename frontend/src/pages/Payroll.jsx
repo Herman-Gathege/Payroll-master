@@ -107,7 +107,10 @@ export default function Payroll() {
         `Generate payroll for ${getMonthName(selectedMonth)} ${selectedYear}?`
       )
     ) {
-      generatePayrollMutation.mutate({ month: selectedMonth, year: selectedYear });
+      generatePayrollMutation.mutate({
+        month: selectedMonth,
+        year: selectedYear,
+      });
     }
   };
 
@@ -160,12 +163,19 @@ export default function Payroll() {
 
   const handleDownloadPayslip = async (employeeId, month, year) => {
     try {
-      const resp = await payrollService.downloadPayslip(employeeId, month, year);
+      const resp = await payrollService.downloadPayslip(
+        employeeId,
+        month,
+        year
+      );
       // resp is axios response with blob
       const url = window.URL.createObjectURL(new Blob([resp.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `payslip_${employeeId}_${month}_${year}.html`); // backend returns HTML
+      link.setAttribute(
+        "download",
+        `payslip_${employeeId}_${month}_${year}.html`
+      ); // backend returns HTML
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -313,34 +323,91 @@ export default function Payroll() {
                         : "warning";
                     return (
                       <TableRow key={row.id}>
-                        <TableCell>{row.employee_number ?? row.employee_id}</TableCell>
-                        <TableCell>{row.employee_name ?? row.employee}</TableCell>
-                        <TableCell align="right">KES {parseFloat(row.gross_pay).toLocaleString()}</TableCell>
-                        <TableCell align="right">KES {parseFloat(row.nssf_employee || 0).toLocaleString()}</TableCell>
-                        <TableCell align="right">KES {parseFloat(row.shif || 0).toLocaleString()}</TableCell>
-                        <TableCell align="right">KES {parseFloat(row.housing_levy || 0).toLocaleString()}</TableCell>
-                        <TableCell align="right">KES {parseFloat(row.paye || 0).toLocaleString()}</TableCell>
-                        <TableCell align="right">KES {parseFloat(row.total_deductions || 0).toLocaleString()}</TableCell>
+                        <TableCell>
+                          {row.employee_no
+                            ? `${row.employee_no}`
+                            : `${row.employee_id}`}
+                        </TableCell>
+                        <TableCell>
+                          {row.first_name
+                            ? `${row.first_name} ${row.last_name || ""}`.trim()
+                            : `Employee ${row.employee_id}`}
+                        </TableCell>{" "}
+                        <TableCell align="right">
+                          KES {parseFloat(row.gross_pay).toLocaleString()}
+                        </TableCell>
+                        <TableCell align="right">
+                          KES{" "}
+                          {parseFloat(row.nssf_employee || 0).toLocaleString()}
+                        </TableCell>
+                        <TableCell align="right">
+                          KES {parseFloat(row.shif || 0).toLocaleString()}
+                        </TableCell>
+                        <TableCell align="right">
+                          KES{" "}
+                          {parseFloat(row.housing_levy || 0).toLocaleString()}
+                        </TableCell>
+                        <TableCell align="right">
+                          KES {parseFloat(row.paye || 0).toLocaleString()}
+                        </TableCell>
+                        <TableCell align="right">
+                          KES{" "}
+                          {parseFloat(
+                            row.total_deductions || 0
+                          ).toLocaleString()}
+                        </TableCell>
                         <TableCell align="right" sx={{ fontWeight: 600 }}>
                           KES {parseFloat(row.net_pay || 0).toLocaleString()}
                         </TableCell>
                         <TableCell align="center">
-                          <Chip label={row.status ?? 'draft'} size="small" color={statusColor} />
+                          <Chip
+                            label={row.status ?? "draft"}
+                            size="small"
+                            color={statusColor}
+                          />
                         </TableCell>
                         <TableCell align="center">
-                          <IconButton size="small" title="Download Payslip" onClick={() => handleDownloadPayslip(row.employee_id, selectedMonth, selectedYear)}>
+                          <IconButton
+                            size="small"
+                            title="Download Payslip"
+                            onClick={() =>
+                              handleDownloadPayslip(
+                                row.employee_id,
+                                selectedMonth,
+                                selectedYear
+                              )
+                            }
+                          >
                             <Download />
                           </IconButton>
-                          <IconButton size="small" title="Email Payslip" onClick={() => handleEmailPayslip(row.employee_id, selectedMonth, selectedYear)}>
+                          <IconButton
+                            size="small"
+                            title="Email Payslip"
+                            onClick={() =>
+                              handleEmailPayslip(
+                                row.employee_id,
+                                selectedMonth,
+                                selectedYear
+                              )
+                            }
+                          >
                             <Email />
                           </IconButton>
-                          {row.status !== 'approved' && (
-                            <IconButton size="small" title="Approve" onClick={() => handleApprove(row.id)}>
+                          {row.status !== "approved" && (
+                            <IconButton
+                              size="small"
+                              title="Approve"
+                              onClick={() => handleApprove(row.id)}
+                            >
                               <Check />
                             </IconButton>
                           )}
-                          {row.status === 'approved' && (
-                            <IconButton size="small" title="Mark Paid" onClick={() => handleProcessPayment(row.id)}>
+                          {row.status === "approved" && (
+                            <IconButton
+                              size="small"
+                              title="Mark Paid"
+                              onClick={() => handleProcessPayment(row.id)}
+                            >
                               <SettingsIcon />
                             </IconButton>
                           )}

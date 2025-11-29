@@ -1,7 +1,7 @@
 import api from './api'
 
 /**
- * Payroll Service (calls backend /api/payroll.php with action=...)
+from frontend/src/services/payrollService.js
  */
 class PayrollService {
   async getPayroll(month, year) {
