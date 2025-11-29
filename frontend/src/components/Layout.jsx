@@ -62,12 +62,12 @@ const securityMenuItems = [
   { text: 'Security & Config', icon: <SettingsIcon />, path: '/employer/security' },
 ]
 
-const employeePortalMenuItem = [
-  { text: 'My Profile', icon: <AccountCircle />, path: '/employee/portal' },
-  { text: 'Leave Requests', icon: <EventAvailable />, path: '/employee/leave' },
-  { text: 'Attendance', icon: <AccessTime />, path: '/employee/attendance' },
-  { text: 'Payslips', icon: <Payments />, path: '/employee/payslips' },
-]
+// const employeePortalMenuItem = [
+//   { text: 'My Profile', icon: <AccountCircle />, path: '/employee/portal' },
+//   { text: 'Leave Requests', icon: <EventAvailable />, path: '/employee/leave' },
+//   { text: 'Attendance', icon: <AccessTime />, path: '/employee/attendance' },
+//   { text: 'Payslips', icon: <Payments />, path: '/employee/payslips' },
+// ]
 
 export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -169,7 +169,7 @@ export default function Layout() {
       {renderMenuSection('HUMAN RESOURCE', hrMenuItems)}
       {renderMenuSection('PAYROLL', payrollMenuItems)}
       {renderMenuSection('CONFIGURATION', securityMenuItems)}
-      {renderMenuSection('EMPLOYEE SELF-SERVICE', employeePortalMenuItem)}
+      {/* {renderMenuSection('EMPLOYEE SELF-SERVICE', employeePortalMenuItem)} */}
     </div>
   )
 

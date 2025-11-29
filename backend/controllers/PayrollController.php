@@ -292,27 +292,68 @@ public function getPayslip($employee_id, $month, $year)
             p.*,
             e.first_name,
             e.last_name,
-            e.id_number AS national_id,
+            e.employee_no,
             e.work_email,
-            e.personal_email
+            e.personal_email,
+
+            COALESCE(d.name, 'N/A')      AS department_name,
+            COALESCE(pos.title, 'N/A')   AS position_title
+
         FROM payroll p
         JOIN employees e ON e.id = p.employee_id
+        LEFT JOIN departments d   ON e.department_id = d.id
+        LEFT JOIN positions pos   ON e.position_id   = pos.id
+
         WHERE p.employee_id = :employee_id
-        AND p.period_month = :month
-        AND p.period_year = :year
+          AND p.period_month = :month
+          AND p.period_year  = :year
         LIMIT 1
     ";
 
     $stmt = $this->db->prepare($sql);
     $stmt->execute([
         ':employee_id' => $employee_id,
-        ':month' => $month,
-        ':year' => $year
+        ':month'       => $month,
+        ':year'        => $year
     ]);
 
-    $payslip = $stmt->fetch(PDO::FETCH_ASSOC);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    return $payslip ?: null;
+    if (!$row) {
+        return null;
+    }
+
+    // THIS LINE WAS BROKEN BEFORE → NOW FIXED
+    $fullName = trim($row['first_name'] . ' ' . ($row['last_name'] ?? ''));
+
+    return [
+        'employee_name'        => $fullName,
+        'employee_number'      => $row['employee_no'],
+        'department'           => $row['department_name'],
+        'position'             => $row['position_title'],
+
+        'period_month'         => (int)$row['period_month'],
+        'period_year'          => (int)$row['period_year'],
+
+        'basic_salary'         => (float)$row['basic_salary'],
+        'housing_allowance'    => (float)$row['housing_allowance'],
+        'transport_allowance'  => (float)$row['transport_allowance'],
+        'medical_allowance'    => (float)$row['medical_allowance'],
+
+        'gross_pay'            => (float)$row['gross_pay'],
+        'paye'                 => (float)$row['paye'],
+        'nssf_employee'        => (float)$row['nssf_employee'],
+        'shif'                 => (float)$row['shif'],
+        'housing_levy'         => (float)$row['housing_levy'],
+        'personal_relief'      => (float)$row['personal_relief'],
+        'total_deductions'     => (float)$row['total_deductions'],
+        'net_pay'              => (float)$row['net_pay'],
+
+        'overtime_pay'         => (float)$row['overtime_pay'],
+        'overtime_hours'       => (float)$row['overtime_hours'],
+        'absence_deduction'    => (float)$row['absence_deduction'],
+        'absent_days'          => (int)$row['absent_days'],
+    ];
 }
 
 
