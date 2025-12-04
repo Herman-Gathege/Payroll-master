@@ -138,9 +138,15 @@ export const employeeService = {
   };
   
   return api.put(ESS_PROFILE, allowed);
-}
+  
+},
+
+getNextEmployeeNo: async () => {
+    const response = await api.get("/employer/next_employee_no.php");
+    return response.data;
+  },
+};
 
 
-}
 
 export default employeeService;

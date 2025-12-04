@@ -4,9 +4,9 @@
 
 // frontend/src/pages/AddEmployee.jsx
 
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useMutation } from 'react-query'
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useMutation } from "react-query";
 import {
   Box,
   Paper,
@@ -15,17 +15,17 @@ import {
   Button,
   Grid,
   MenuItem,
-  Divider
-} from '@mui/material'
-import { Save, Cancel } from '@mui/icons-material'
-import { toast } from 'react-toastify'
-import employeeService from '../services/employeeService'
+  Divider,
+} from "@mui/material";
+import { Save, Cancel } from "@mui/icons-material";
+import { toast } from "react-toastify";
+import employeeService from "../services/employeeService";
 import { getDepartments } from "../services/departmentsService";
 import { getPositions } from "../services/positionsService";
-import { primaryButtonStyle } from '../styles/buttonStyles'
+import { primaryButtonStyle } from "../styles/buttonStyles";
 
 export default function AddEmployee() {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
     employee_no: "",
@@ -53,79 +53,97 @@ export default function AddEmployee() {
     position_id: "",
     basic_salary: "",
     currency: "KES",
-  })
+  });
 
   const [departments, setDepartments] = useState([]);
   const [positions, setPositions] = useState([]);
-  const [errors, setErrors] = useState({})
+  const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    async function loadInitial() {
+      try {
+        const res = await employeeService.getNextEmployeeNo();
+        setFormData((prev) => ({
+          ...prev,
+          employee_no: res?.next_employee_no || "",
+        }));
+      } catch (e) {
+        toast.error("Failed to auto-generate employee number");
+      }
+    }
+
+    loadInitial();
+  }, []);
 
   // -------------------- Load dropdowns ----------------------
-    useEffect(() => {
-      async function loadDropDowns() {
-        try {
-          const [deptRes, posRes] = await Promise.all([
-            getDepartments(),
-            getPositions()
-          ]);
-  
-          setDepartments(deptRes.data?.data || []);
-          setPositions(posRes.data?.data || []);
-  
-        } catch (err) {
-          toast.error("Failed to load dropdown data");
-        }
+  useEffect(() => {
+    async function loadDropDowns() {
+      try {
+        const [deptRes, posRes] = await Promise.all([
+          getDepartments(),
+          getPositions(),
+        ]);
+
+        setDepartments(deptRes.data?.data || []);
+        setPositions(posRes.data?.data || []);
+      } catch (err) {
+        toast.error("Failed to load dropdown data");
       }
-  
-      loadDropDowns();
-    }, []);
+    }
+
+    loadDropDowns();
+  }, []);
 
   const createMutation = useMutation(employeeService.createEmployee, {
     onSuccess: () => {
-      toast.success("Employee added successfully!")
-      navigate("/employer/employees")
+      toast.success("Employee added successfully!");
+      navigate("/employer/employees");
     },
     onError: (error) => {
-      toast.error(error.response?.data?.message || "Failed to add employee")
-    }
-  })
+      toast.error(error.response?.data?.message || "Failed to add employee");
+    },
+  });
 
   // ------------------ Handle Change ------------------
   const handleChange = (e) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: null }))
+      setErrors((prev) => ({ ...prev, [name]: null }));
     }
-  }
+  };
 
   const validateForm = () => {
-    const newErrors = {}
+    const newErrors = {};
 
-    if (!formData.employee_no) newErrors.employee_no = "Employee number is required"
-    if (!formData.first_name) newErrors.first_name = "First name is required"
-    if (!formData.last_name) newErrors.last_name = "Last name is required"
-    if (!formData.phone) newErrors.phone = "Phone is required"
-    if (!formData.date_of_birth) newErrors.date_of_birth = "Date of birth is required"
-    if (!formData.gender) newErrors.gender = "Gender is required"
-    if (!formData.work_email) newErrors.work_email = "Work email is required"
-    if (!formData.hire_date) newErrors.hire_date = "Hire date is required"
-    if (!formData.department_id) newErrors.department_id = "Department is required"
-    if (!formData.position_id) newErrors.position_id = "Position is required"
+    if (!formData.employee_no)
+      newErrors.employee_no = "Employee number is required";
+    if (!formData.first_name) newErrors.first_name = "First name is required";
+    if (!formData.last_name) newErrors.last_name = "Last name is required";
+    if (!formData.phone) newErrors.phone = "Phone is required";
+    if (!formData.date_of_birth)
+      newErrors.date_of_birth = "Date of birth is required";
+    if (!formData.gender) newErrors.gender = "Gender is required";
+    if (!formData.work_email) newErrors.work_email = "Work email is required";
+    if (!formData.hire_date) newErrors.hire_date = "Hire date is required";
+    if (!formData.department_id)
+      newErrors.department_id = "Department is required";
+    if (!formData.position_id) newErrors.position_id = "Position is required";
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = (e) => {
-    e.preventDefault()
+    e.preventDefault();
     if (validateForm()) {
-      createMutation.mutate(formData)
+      createMutation.mutate(formData);
     } else {
-      toast.error("Please fix validation errors")
+      toast.error("Please fix validation errors");
     }
-  }
+  };
 
-  const handleCancel = () => navigate("/employer/employees")
+  const handleCancel = () => navigate("/employer/employees");
 
   // ------------------------ UI ------------------------
   return (
@@ -138,15 +156,13 @@ export default function AddEmployee() {
 
       <Paper sx={{ p: 4 }}>
         <form onSubmit={handleSubmit}>
-          
           {/* PERSONAL INFO */}
-          <Typography variant="h6" sx={{ color: 'primary.main', mb: 1 }}>
+          <Typography variant="h6" sx={{ color: "primary.main", mb: 1 }}>
             Personal Information
           </Typography>
           <Divider sx={{ mb: 3 }} />
 
           <Grid container spacing={3}>
-
             <Grid item xs={12} sm={6} md={4}>
               <TextField
                 label="Employee Number"
@@ -278,17 +294,15 @@ export default function AddEmployee() {
                 <MenuItem value="Female">Female</MenuItem>
               </TextField>
             </Grid>
-
           </Grid>
 
           {/* EMPLOYMENT INFO */}
-          <Typography variant="h6" sx={{ color: 'primary.main', mt: 4 }}>
+          <Typography variant="h6" sx={{ color: "primary.main", mt: 4 }}>
             Employment Information
           </Typography>
           <Divider sx={{ mb: 3 }} />
 
           <Grid container spacing={3}>
-
             {/* EMPLOYMENT TYPE */}
             <Grid item xs={12} sm={6} md={4}>
               <TextField
@@ -390,12 +404,15 @@ export default function AddEmployee() {
                 onChange={handleChange}
               />
             </Grid>
-
           </Grid>
 
           {/* ACTION BUTTONS */}
           <Box display="flex" justifyContent="flex-end" gap={2} mt={4}>
-            <Button variant="outlined" startIcon={<Cancel />} onClick={handleCancel}>
+            <Button
+              variant="outlined"
+              startIcon={<Cancel />}
+              onClick={handleCancel}
+            >
               Cancel
             </Button>
             <Button
@@ -407,9 +424,8 @@ export default function AddEmployee() {
               Save Employee
             </Button>
           </Box>
-
         </form>
       </Paper>
     </Box>
-  )
+  );
 }
