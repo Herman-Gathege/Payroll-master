@@ -387,6 +387,92 @@ function handlePut($payrollController) {
             ]);
             break;
 
+        case 'approve_bulk':
+            $ids = $data['payroll_ids'] ?? [];
+
+            if (empty($ids) || !is_array($ids)) {
+                echo json_encode(['success' => false, 'message' => 'No payroll IDs provided']);
+                return;
+            }
+
+            $successCount = 0;
+
+            foreach ($ids as $id) {
+                if ($payrollController->approvePayroll($id)) {
+                    $successCount++;
+                }
+            }
+
+            echo json_encode([
+                'success' => true,
+                'message' => "Approved {$successCount} payroll records"
+            ]);
+            break;
+
+
+        case 'process_bulk_payment':
+            $ids = $data['payroll_ids'] ?? [];
+            $method = $data['payment_method'] ?? 'bank_transfer';
+
+            if (empty($ids)) {
+                echo json_encode(['success' => false, 'message' => 'No payroll IDs provided']);
+                return;
+            }
+
+            $successCount = 0;
+
+            foreach ($ids as $id) {
+                if ($payrollController->processPayment($id, $method)) {
+                    $successCount++;
+                }
+            }
+
+            echo json_encode([
+                'success' => true,
+                'message' => "Processed payment for {$successCount} payroll records"
+            ]);
+            break;
+
+        case 'send_bulk_payslips':
+            $ids = $data['payroll_ids'] ?? [];
+            $month = $data['month'];
+            $year = $data['year'];
+
+            if (empty($ids)) {
+                echo json_encode(['success' => false, 'message' => 'No payroll IDs provided']);
+                return;
+            }
+
+            require_once __DIR__ . '/../utils/EmailService.php';
+
+            $emailService = new EmailService();
+            $sent = 0;
+
+            foreach ($ids as $pid) {
+                $payslip = $payrollController->getPayslipByPayrollId($pid);
+                if (!$payslip) continue;
+
+                // This returns employee email + summary
+                $to = $payslip['work_email'] ?: $payslip['personal_email'];
+                if (!$to) continue;
+
+                $emailService->sendPayslip(
+                    $to,
+                    $payslip['employee_name'],
+                    $payslip
+                );
+
+                $sent++;
+            }
+
+            echo json_encode([
+                'success' => true,
+                'message' => "Sent {$sent} payslips"
+            ]);
+            break;
+
+        
+
         default:
             http_response_code(400);
             echo json_encode([

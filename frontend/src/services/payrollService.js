@@ -152,6 +152,51 @@ class PayrollService {
     return (response.data.data = response.data.data || []);
     return response.data;
   }
+
+  // BULK APPROVE
+  async bulkApprove(ids) {
+    try {
+      const response = await api.put("/payroll.php", {
+        action: "approve_bulk",
+        payroll_ids: ids,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error approving bulk payroll:", error);
+      throw error;
+    }
+  }
+
+  // BULK MARK PAID
+  async bulkMarkPaid(ids, paymentMethod = "bank_transfer") {
+    try {
+      const response = await api.put("/payroll.php", {
+        action: "process_bulk_payment",
+        payroll_ids: ids,
+        payment_method: paymentMethod,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error processing bulk payment:", error);
+      throw error;
+    }
+  }
+
+  // BULK SEND PAYSLIPS
+  async bulkSendPayslips(ids, month, year) {
+    try {
+      const response = await api.post("/payroll.php", {
+        action: "send_bulk_payslips",
+        payroll_ids: ids,
+        month,
+        year,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error sending bulk payslips:", error);
+      throw error;
+    }
+  }
 }
 
 export default new PayrollService();

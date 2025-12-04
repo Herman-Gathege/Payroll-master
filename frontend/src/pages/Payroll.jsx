@@ -21,6 +21,7 @@ import {
   Divider,
   Card,
   CardContent,
+  Checkbox,
 } from "@mui/material";
 import {
   PlayArrow,
@@ -29,6 +30,7 @@ import {
   Check,
   Settings as SettingsIcon,
   Save,
+  Visibility,
 } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import payrollService from "../services/payrollService";
@@ -76,6 +78,8 @@ export default function Payroll() {
   );
 
   const payrollRecords = payrollData?.data || [];
+  const [selectedRows, setSelectedRows] = useState([]);
+  const allSelected = selectedRows.length === payrollRecords.length;
 
   // Generate bulk payroll mutation (unchanged behavior)
   const generatePayrollMutation = useMutation(
@@ -198,6 +202,56 @@ export default function Payroll() {
     }
   };
 
+  const handleBulkApprove = async () => {
+    if (!selectedRows.length) return;
+
+    if (!window.confirm(`Approve ${selectedRows.length} payroll records?`))
+      return;
+
+    try {
+      const res = await payrollService.bulkApprove(selectedRows);
+      toast.success(res.message);
+      setSelectedRows([]);
+      queryClient.invalidateQueries(["payroll", selectedMonth, selectedYear]);
+    } catch (e) {
+      toast.error("Failed to approve selected payrolls");
+    }
+  };
+
+  const handleBulkPaid = async () => {
+    if (!selectedRows.length) return;
+
+    if (!window.confirm(`Mark ${selectedRows.length} records as paid?`)) return;
+
+    try {
+      const res = await payrollService.bulkMarkPaid(selectedRows);
+      toast.success(res.message);
+      setSelectedRows([]);
+      queryClient.invalidateQueries(["payroll", selectedMonth, selectedYear]);
+    } catch (e) {
+      toast.error("Failed to mark selected records as paid");
+    }
+  };
+
+  const handleBulkSendPayslips = async () => {
+    if (!selectedRows.length) return;
+
+    if (!window.confirm(`Send payslips to ${selectedRows.length} employees?`))
+      return;
+
+    try {
+      const res = await payrollService.bulkSendPayslips(
+        selectedRows,
+        selectedMonth,
+        selectedYear
+      );
+      toast.success(res.message);
+      setSelectedRows([]);
+    } catch (e) {
+      toast.error("Failed to send payslips");
+    }
+  };
+
   return (
     <Box>
       <Box
@@ -280,9 +334,67 @@ export default function Payroll() {
           </Paper>
 
           <TableContainer component={Paper}>
+            <Box display="flex" alignItems="center" mb={2} gap={2}>
+              <Checkbox
+                checked={allSelected}
+                indeterminate={selectedRows.length > 0 && !allSelected}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setSelectedRows(payrollRecords.map((p) => p.id));
+                  } else {
+                    setSelectedRows([]);
+                  }
+                }}
+              />
+
+              <Typography>Select All</Typography>
+
+              {selectedRows.length > 0 && (
+                <>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    onClick={handleBulkApprove}
+                  >
+                    Approve Selected
+                  </Button>
+
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleBulkPaid}
+                  >
+                    Mark Paid
+                  </Button>
+
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    onClick={handleBulkSendPayslips}
+                  >
+                    Send Payslips
+                  </Button>
+                </>
+              )}
+            </Box>
+
             <Table>
               <TableHead>
                 <TableRow>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      checked={allSelected}
+                      indeterminate={selectedRows.length > 0 && !allSelected}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedRows(payrollRecords.map((p) => p.id));
+                        } else {
+                          setSelectedRows([]);
+                        }
+                      }}
+                    />
+                  </TableCell>
+
                   <TableCell>Employee #</TableCell>
                   <TableCell>Name</TableCell>
                   <TableCell align="right">Gross Pay</TableCell>
@@ -323,6 +435,20 @@ export default function Payroll() {
                         : "warning";
                     return (
                       <TableRow key={row.id}>
+                        <TableCell padding="checkbox">
+                          <Checkbox
+                            checked={selectedRows.includes(row.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedRows((prev) => [...prev, row.id]);
+                              } else {
+                                setSelectedRows((prev) =>
+                                  prev.filter((x) => x !== row.id)
+                                );
+                              }
+                            }}
+                          />
+                        </TableCell>
                         <TableCell>
                           {row.employee_no
                             ? `${row.employee_no}`
@@ -411,6 +537,16 @@ export default function Payroll() {
                               <SettingsIcon />
                             </IconButton>
                           )}
+
+                          <IconButton
+                            size="small"
+                            title="View Payroll Details"
+                            onClick={() =>
+                              navigate(`/employer/payroll/${row.id}`)
+                            }
+                          >
+                            <Visibility />
+                          </IconButton>
                         </TableCell>
                       </TableRow>
                     );
