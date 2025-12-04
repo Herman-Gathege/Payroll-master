@@ -91,41 +91,77 @@ class EmployeeController {
     }
 
     public function createEmployee($data) {
-        if(!empty($data->first_name) && !empty($data->last_name) &&
-           !empty($data->national_id) && !empty($data->kra_pin)) {
+    if(!empty($data->first_name) && !empty($data->last_name) && !empty($data->national_id) && !empty($data->kra_pin)) {
 
-            $this->employee->employee_number = $data->employee_number ?? $this->generateEmployeeNumber();
-            $this->employee->first_name = $data->first_name;
-            $this->employee->middle_name = $data->middle_name ?? null;
-            $this->employee->last_name = $data->last_name;
-            $this->employee->national_id = $data->national_id;
-            $this->employee->kra_pin = $data->kra_pin;
-            $this->employee->shif_number = $data->shif_number ?? null;
-            $this->employee->nssf_number = $data->nssf_number ?? null;
-            $this->employee->date_of_birth = $data->date_of_birth;
-            $this->employee->gender = $data->gender;
-            $this->employee->phone_number = $data->phone_number;
-            $this->employee->personal_email = $data->personal_email ?? null;
-            $this->employee->work_email = $data->work_email ?? null;
-            $this->employee->department_id = $data->department_id ?? null;
-            $this->employee->position_id = $data->position_id ?? null;
-            $this->employee->manager_id = $data->manager_id ?? null;
-            $this->employee->employment_type = $data->employment_type;
-            $this->employee->employment_status = 'active';
-            $this->employee->hire_date = $data->hire_date;
+        $this->employee->employee_number = $data->employee_number ?? $this->generateEmployeeNumber();
+        $this->employee->first_name = $data->first_name;
+        $this->employee->middle_name = $data->middle_name ?? null;
+        $this->employee->last_name = $data->last_name;
+        $this->employee->national_id = $data->national_id;
+        $this->employee->kra_pin = $data->kra_pin;
+        $this->employee->shif_number = $data->shif_number ?? null;
+        $this->employee->nssf_number = $data->nssf_number ?? null;
+        $this->employee->date_of_birth = $data->date_of_birth ?? null;
+        $this->employee->gender = $data->gender ?? null;
+        $this->employee->phone_number = $data->phone_number ?? null;
+        $this->employee->personal_email = $data->personal_email ?? null;
+        $this->employee->work_email = $data->work_email ?? null;
+        $this->employee->department_id = $data->department_id ?? null;
+        $this->employee->position_id = $data->position_id ?? null;
+        $this->employee->manager_id = $data->manager_id ?? null;
+        $this->employee->employment_type = $data->employment_type ?? 'Permanent';
+        $this->employee->employment_status = 'active';
+        $this->employee->hire_date = $data->hire_date ?? null;
 
-            if($this->employee->create()) {
-                http_response_code(201);
-                echo json_encode(array("message" => "Employee was created successfully."));
-            } else {
-                http_response_code(503);
-                echo json_encode(array("message" => "Unable to create employee."));
+        if($this->employee->create()) {
+            // Employee created successfully, now create employee_users automatically
+            $employeeId = $this->employee->id;
+
+            try {
+                // Determine username/email defaults
+                $username = $this->employee->work_email ?? strtolower(trim($this->employee->first_name . '.' . $this->employee->last_name));
+                $email = $this->employee->work_email ?? null;
+
+                // If username is an email include only the local part if needed or keep as is
+                $defaultPassword = (string)$employeeId; // user requirement: use employee_id as password
+                $passwordHash = password_hash($defaultPassword, PASSWORD_BCRYPT);
+
+                // Check for existing user by employee_id or username
+                $checkSql = "SELECT id FROM employee_users WHERE employee_id = ? OR username = ? LIMIT 1";
+                $checkStmt = $this->db->prepare($checkSql);
+                $checkStmt->execute([$employeeId, $username]);
+
+                if(!$checkStmt->fetch()) {
+                    $insertSql = "INSERT INTO employee_users (employee_id, username, email, password_hash, role, is_active, force_password_change)
+                                  VALUES (:employee_id, :username, :email, :password_hash, 'employee', 1, 1)";
+                    $insertStmt = $this->db->prepare($insertSql);
+                    $insertStmt->execute([
+                        ':employee_id' => $employeeId,
+                        ':username' => $username,
+                        ':email' => $email,
+                        ':password_hash' => $passwordHash
+                    ]);
+                } else {
+                    // existing user found — log (do not fail employee creation)
+                    error_log("Employee user exists for employee_id={$employeeId} or username={$username}");
+                }
+            } catch (Exception $e) {
+                // log but don't break employee creation
+                error_log("Failed to create employee_user for employee_id={$employeeId}: " . $e->getMessage());
             }
+
+            http_response_code(201);
+            echo json_encode(array("message" => "Employee was created successfully."));
         } else {
-            http_response_code(400);
-            echo json_encode(array("message" => "Unable to create employee. Data is incomplete."));
+            http_response_code(503);
+            echo json_encode(array("message" => "Unable to create employee."));
         }
+    } else {
+        http_response_code(400);
+        echo json_encode(array("message" => "Unable to create employee. Data is incomplete."));
     }
+}
+
 
     public function updateEmployee($data) {
         if(!empty($data->id)) {

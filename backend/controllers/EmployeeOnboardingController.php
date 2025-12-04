@@ -256,38 +256,54 @@ class EmployeeOnboardingController {
             // 4. Create employee user account (if create_login = true)
             $username = null;
             $default_password = null;
-            
+
             if (isset($data->create_login) && $data->create_login === true) {
-                $username = $data->username ?? strtolower(str_replace(' ', '.', $data->first_name . '.' . $data->last_name));
-                $default_password = $data->password ?? 'Welcome@2025!';
+                // prefer work_email as username + email
+                $username = $data->username ?? ($data->work_email ?? strtolower(str_replace(' ', '.', $data->first_name . '.' . $data->last_name)));
+                $employee_email = $data->work_email ?? $data->personal_email ?? null;
+
+                // default password: use employee id if not provided by admin
+                $default_password = $data->password ?? (string)$employee_id;
                 $password_hash = password_hash($default_password, PASSWORD_BCRYPT);
-                
-                $user_query = "INSERT INTO employee_users (
-                    employee_id, username, password_hash, role, is_active
-                ) VALUES (
-                    :employee_id, :username, :password_hash, 'employee', 1
-                )";
-                
-                $user_stmt = $this->db->prepare($user_query);
-                $user_stmt->execute([
+
+                // Check for existing user by employee_id or username
+                $checkUserSql = "SELECT id FROM employee_users WHERE employee_id = :employee_id OR username = :username LIMIT 1";
+                $checkUserStmt = $this->db->prepare($checkUserSql);
+                $checkUserStmt->execute([
                     ':employee_id' => $employee_id,
-                    ':username' => $username,
-                    ':password_hash' => $password_hash
+                    ':username' => $username
                 ]);
-                
-                // 4b. Send welcome email if email provided
-                $employee_email = $data->work_email ?? $data->personal_email;
+
+                if (!$checkUserStmt->fetch()) {
+                    $user_query = "INSERT INTO employee_users (
+                        employee_id, username, email, password_hash, role, is_active, force_password_change
+                    ) VALUES (
+                        :employee_id, :username, :email, :password_hash, 'employee', 1, 1
+                    )";
+
+                    $user_stmt = $this->db->prepare($user_query);
+                    $user_stmt->execute([
+                        ':employee_id' => $employee_id,
+                        ':username' => $username,
+                        ':email' => $employee_email,
+                        ':password_hash' => $password_hash
+                    ]);
+                } else {
+                    // user exists; log and continue (transaction still intact)
+                    error_log("employee_users already exists for employee_id={$employee_id} or username={$username}");
+                }
+
+                // 4b. Send welcome email if email provided and send_email requested
                 if ($employee_email && isset($data->send_email) && $data->send_email === true) {
                     try {
                         require_once __DIR__ . '/../utils/EmailService.php';
-                        
                         // Get organization name
                         $org_query = "SELECT organization_name FROM organizations WHERE id = :org_id";
                         $org_stmt = $this->db->prepare($org_query);
                         $org_stmt->execute([':org_id' => $this->organization_id]);
                         $org_data = $org_stmt->fetch(PDO::FETCH_ASSOC);
                         $org_name = $org_data['organization_name'] ?? 'Your Organization';
-                        
+
                         $emailService = new EmailService();
                         $emailService->sendEmployeeOnboardingEmail(
                             $employee_email,
@@ -303,6 +319,7 @@ class EmployeeOnboardingController {
                     }
                 }
             }
+
             
             // 5. Initialize leave balances for current year
             $year = date('Y');

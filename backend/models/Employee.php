@@ -32,53 +32,56 @@ class Employee {
     }
 
     public function create() {
-        $query = "INSERT INTO " . $this->table_name . "
-                SET employee_number=:employee_number, first_name=:first_name,
-                    middle_name=:middle_name, last_name=:last_name,
-                    national_id=:national_id, kra_pin=:kra_pin,
-                    shif_number=:shif_number, nssf_number=:nssf_number,
-                    date_of_birth=:date_of_birth, gender=:gender,
-                    phone_number=:phone_number, personal_email=:personal_email,
-                    work_email=:work_email, department_id=:department_id,
-                    position_id=:position_id, manager_id=:manager_id,
-                    employment_type=:employment_type, employment_status=:employment_status,
-                    hire_date=:hire_date";
+    $query = "INSERT INTO " . $this->table_name . "
+            SET employee_number=:employee_number, first_name=:first_name,
+                middle_name=:middle_name, last_name=:last_name,
+                national_id=:national_id, kra_pin=:kra_pin,
+                shif_number=:shif_number, nssf_number=:nssf_number,
+                date_of_birth=:date_of_birth, gender=:gender,
+                phone_number=:phone_number, personal_email=:personal_email,
+                work_email=:work_email, department_id=:department_id,
+                position_id=:position_id, manager_id=:manager_id,
+                employment_type=:employment_type, employment_status=:employment_status,
+                hire_date=:hire_date";
 
-        $stmt = $this->conn->prepare($query);
+    $stmt = $this->conn->prepare($query);
 
-        // Sanitize inputs
-        $this->employee_number = htmlspecialchars(strip_tags($this->employee_number));
-        $this->first_name = htmlspecialchars(strip_tags($this->first_name));
-        $this->last_name = htmlspecialchars(strip_tags($this->last_name));
-        $this->national_id = htmlspecialchars(strip_tags($this->national_id));
-        $this->kra_pin = htmlspecialchars(strip_tags($this->kra_pin));
+    // Sanitize inputs
+    $this->employee_number = htmlspecialchars(strip_tags($this->employee_number));
+    $this->first_name = htmlspecialchars(strip_tags($this->first_name));
+    $this->last_name = htmlspecialchars(strip_tags($this->last_name));
+    $this->national_id = htmlspecialchars(strip_tags($this->national_id));
+    $this->kra_pin = htmlspecialchars(strip_tags($this->kra_pin));
 
-        // Bind parameters
-        $stmt->bindParam(":employee_number", $this->employee_number);
-        $stmt->bindParam(":first_name", $this->first_name);
-        $stmt->bindParam(":middle_name", $this->middle_name);
-        $stmt->bindParam(":last_name", $this->last_name);
-        $stmt->bindParam(":national_id", $this->national_id);
-        $stmt->bindParam(":kra_pin", $this->kra_pin);
-        $stmt->bindParam(":shif_number", $this->shif_number);
-        $stmt->bindParam(":nssf_number", $this->nssf_number);
-        $stmt->bindParam(":date_of_birth", $this->date_of_birth);
-        $stmt->bindParam(":gender", $this->gender);
-        $stmt->bindParam(":phone_number", $this->phone_number);
-        $stmt->bindParam(":personal_email", $this->personal_email);
-        $stmt->bindParam(":work_email", $this->work_email);
-        $stmt->bindParam(":department_id", $this->department_id);
-        $stmt->bindParam(":position_id", $this->position_id);
-        $stmt->bindParam(":manager_id", $this->manager_id);
-        $stmt->bindParam(":employment_type", $this->employment_type);
-        $stmt->bindParam(":employment_status", $this->employment_status);
-        $stmt->bindParam(":hire_date", $this->hire_date);
+    // Bind parameters
+    $stmt->bindParam(":employee_number", $this->employee_number);
+    $stmt->bindParam(":first_name", $this->first_name);
+    $stmt->bindParam(":middle_name", $this->middle_name);
+    $stmt->bindParam(":last_name", $this->last_name);
+    $stmt->bindParam(":national_id", $this->national_id);
+    $stmt->bindParam(":kra_pin", $this->kra_pin);
+    $stmt->bindParam(":shif_number", $this->shif_number);
+    $stmt->bindParam(":nssf_number", $this->nssf_number);
+    $stmt->bindParam(":date_of_birth", $this->date_of_birth);
+    $stmt->bindParam(":gender", $this->gender);
+    $stmt->bindParam(":phone_number", $this->phone_number);
+    $stmt->bindParam(":personal_email", $this->personal_email);
+    $stmt->bindParam(":work_email", $this->work_email);
+    $stmt->bindParam(":department_id", $this->department_id);
+    $stmt->bindParam(":position_id", $this->position_id);
+    $stmt->bindParam(":manager_id", $this->manager_id);
+    $stmt->bindParam(":employment_type", $this->employment_type);
+    $stmt->bindParam(":employment_status", $this->employment_status);
+    $stmt->bindParam(":hire_date", $this->hire_date);
 
-        if($stmt->execute()) {
-            return true;
-        }
-        return false;
+    if($stmt->execute()) {
+        // Persist the newly created id to the model instance for callers
+        $this->id = $this->conn->lastInsertId();
+        return true;
     }
+    return false;
+}
+
 
     public function read() {
         $query = "SELECT e.*, d.name as department_name, p.title as position_title,

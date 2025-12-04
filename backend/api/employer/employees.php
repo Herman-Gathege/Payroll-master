@@ -183,7 +183,7 @@ try {
         exit();
     }
 
-    // ---------------------- POST (create) ----------------------
+        // ---------------------- POST (create) ----------------------
     if ($method === 'POST') {
         $data = json_decode(file_get_contents('php://input'));
         if (!is_object($data)) $data = json_decode('{}');
@@ -198,7 +198,7 @@ try {
             }
         }
 
-        // duplicate check
+        // duplicate employee number
         $chk = $db->prepare("SELECT id FROM employees WHERE employee_no = :emp_no AND organization_id = :org_id");
         $chk->execute([':emp_no' => $data->employee_no, ':org_id' => $organization_id]);
         if ($chk->fetch()) {
@@ -207,6 +207,9 @@ try {
             exit();
         }
 
+        // --------------------------------------
+        // INSERT INTO employees
+        // --------------------------------------
         $ins = $db->prepare("
             INSERT INTO employees (
                 organization_id, employee_no, first_name, middle_name, last_name,
@@ -242,7 +245,7 @@ try {
             ':shif_number' => $data->shif_number ?? null,
             ':phone' => $data->phone,
             ':personal_email' => $data->personal_email ?? null,
-            ':work_email' => $data->work_email,
+            ':work_email' => strtolower(trim($data->work_email)),
             ':date_of_birth' => $data->date_of_birth,
             ':gender' => $data->gender,
             ':marital_status' => $data->marital_status ?? null,
@@ -265,20 +268,54 @@ try {
             ':sub_county' => $data->sub_county ?? null
         ]);
 
-        $newId = $db->lastInsertId();
+        $employee_id = $db->lastInsertId();
 
-        // optionally create an employee_users account
-        if (!empty($data->create_user_account)) {
-            $username = strtolower(preg_replace('/\s+/', '.', trim($data->first_name . '.' . $data->last_name)));
-            $password_hash = password_hash($data->initial_password ?? ('Welcome@' . date('Y')), PASSWORD_BCRYPT);
-            $u = $db->prepare("INSERT INTO employee_users (employee_id, username, email, password_hash, role, is_active, force_password_change, created_at) VALUES (:employee_id, :username, :email, :password_hash, 'employee', 1, 1, NOW())");
-            $u->execute([':employee_id' => $newId, ':username' => $username, ':email' => $data->work_email, ':password_hash' => $password_hash]);
+        // --------------------------------------
+        // AUTO-CREATE EMPLOYEE LOGIN ACCOUNT
+        // --------------------------------------
+
+        $username = strtolower(trim($data->work_email));
+        $email = $username;
+
+        // Check if user already exists (avoid duplicates)
+        $existingUser = $db->prepare("SELECT id FROM employee_users WHERE email = :email LIMIT 1");
+        $existingUser->execute([':email' => $email]);
+
+        if (!$existingUser->fetch()) {
+
+            // default password
+            $default_password = 'Welcome@2025';
+            $hashed = password_hash($default_password, PASSWORD_BCRYPT);
+
+            $u = $db->prepare("
+                INSERT INTO employee_users 
+                (employee_id, username, email, password_hash, role, is_active, force_password_change, created_at) 
+                VALUES 
+                (:eid, :username, :email, :pass, 'employee', 1, 1, NOW())
+            ");
+
+            $u->execute([
+                ':eid' => $employee_id,
+                ':username' => $username,
+                ':email' => $email,
+                ':pass' => $hashed
+            ]);
         }
 
         http_response_code(201);
-        echo json_encode(['success' => true, 'message' => 'Employee created', 'data' => ['id' => $newId, 'employee_no' => $data->employee_no]]);
+        echo json_encode([
+            'success' => true,
+            'message' => 'Employee created',
+            'data' => [
+                'id' => $employee_id,
+                'employee_no' => $data->employee_no,
+                'login_username' => $email,
+                'default_password' => 'Welcome@2025'
+            ]
+        ]);
         exit();
     }
+
 
     // ---------------------- PUT (update) ----------------------
     if ($method === 'PUT') {
