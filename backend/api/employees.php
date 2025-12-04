@@ -1,130 +1,169 @@
 <?php
+/**
+ * backend/api/employees.php
+ * Organization-scoped Employee CRUD & onboarding
+ * Secure version aligned with SecurityMiddleware standard.
+ */
 
-// backend/api/employees.php
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../controllers/EmployeeOnboardingController.php';
+require_once __DIR__ . '/../middleware/SecurityMiddleware.php';
 
-header('Access-Control-Allow-Origin: *');
-header('Content-Type: application/json');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE');
-header('Access-Control-Allow-Headers: Access-Control-Allow-Headers, Content-Type, Access-Control-Allow-Methods, Authorization, X-Requested-With');
+// ----------------------------------------------------
+// CORS + Security Headers (Unified Across All APIs)
+// ----------------------------------------------------
+SecurityMiddleware::handleCORS();
+SecurityMiddleware::applySecurityHeaders();
+SecurityMiddleware::checkRateLimit('employees_api', 300, 60);
 
-require_once '../config/database.php';
-require_once '../controllers/EmployeeOnboardingController.php';
-require_once '../middleware/auth.php';
-
-// Handle preflight request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
 
-// Authenticate user and extract organization context
-$auth = authenticateRequest();
-if (!$auth['success']) {
+// ----------------------------------------------------
+// AUTHENTICATION (Unified Token Model)
+// ----------------------------------------------------
+try {
+    $session = SecurityMiddleware::verifyToken();
+} catch (Exception $e) {
     http_response_code(401);
-    echo json_encode(array(
+    echo json_encode([
         "success" => false,
-        "message" => $auth['message'] ?? "Authentication required"
-    ));
+        "message" => "Authentication required"
+    ]);
     exit();
 }
 
-// Extract organization_id from authenticated user
-$organization_id = $auth['user']['organization_id'] ?? null;
-$user_id = $auth['user']['id'] ?? null;
+$user_id   = $session['user_id'] ?? null;
+$user_type = $session['user_type'] ?? null;
+$org_id    = $session['organization_id'] ?? null;
 
-if (!$organization_id) {
+if (!$user_id || !$org_id) {
     http_response_code(403);
-    echo json_encode(array(
+    echo json_encode([
         "success" => false,
-        "message" => "No organization context found for user"
-    ));
+        "message" => "Invalid session or organization context"
+    ]);
     exit();
 }
 
-// Initialize database and controller with organization context
-$database = new Database();
-$db = $database->getConnection();
+// Only employer/admin/HR should access this endpoint
+if (!in_array($user_type, ['employer', 'admin', 'hr'])) {
+    http_response_code(403);
+    echo json_encode([
+        "success" => false,
+        "message" => "Access denied"
+    ]);
+    exit();
+}
 
-$controller = new EmployeeOnboardingController($db, $organization_id, $user_id);
+// ----------------------------------------------------
+// INIT CONTROLLER + DB
+// ----------------------------------------------------
+$db = (new Database())->getConnection();
+$controller = new EmployeeOnboardingController($db, $org_id, $user_id);
 
-$method = $_SERVER['REQUEST_METHOD'];
-$request_uri = $_SERVER['REQUEST_URI'];
+$method       = $_SERVER['REQUEST_METHOD'];
+$request_uri  = $_SERVER['REQUEST_URI'];
+$uri_parts    = explode('/', trim(parse_url($request_uri, PHP_URL_PATH), '/'));
 
-// Parse request URI
-$uri_parts = explode('/', trim(parse_url($request_uri, PHP_URL_PATH), '/'));
 $id = null;
-
-// Check if this is a search request
 $query_params = [];
 parse_str(parse_url($request_uri, PHP_URL_QUERY) ?? '', $query_params);
 
-// Extract ID if present in URL
+// Extract numeric ID from URI
 if (is_numeric(end($uri_parts))) {
     $id = end($uri_parts);
 }
 
-switch($method) {
+// ----------------------------------------------------
+// ROUTING
+// ----------------------------------------------------
+switch ($method) {
+
+    // ------------------------------
+    // GET: Search, view single, view all
+    // ------------------------------
     case 'GET':
+
         if (isset($query_params['search'])) {
-            // Search employees
             $controller->searchEmployees($query_params['search']);
-        } elseif ($id) {
-            // Get specific employee (organization-scoped)
+        }
+        elseif ($id) {
             $controller->getEmployee($id);
-        } else {
-            // Get all employees for organization
+        }
+        else {
             $controller->getAllEmployees();
         }
         break;
-    
+
+    // ------------------------------
+    // POST: onboard employee
+    // ------------------------------
     case 'POST':
-        // Onboard new employee (atomic transaction)
+
         $data = json_decode(file_get_contents("php://input"));
         if (json_last_error() !== JSON_ERROR_NONE) {
             http_response_code(400);
-            echo json_encode(array(
+            echo json_encode([
                 "success" => false,
                 "message" => "Invalid JSON: " . json_last_error_msg()
-            ));
+            ]);
             exit();
         }
+
         $controller->onboardEmployee($data);
         break;
-    
+
+    // ------------------------------
+    // PUT: update employee
+    // ------------------------------
     case 'PUT':
-        // Update employee (organization-scoped)
+
         $data = json_decode(file_get_contents("php://input"));
         if (json_last_error() !== JSON_ERROR_NONE) {
             http_response_code(400);
-            echo json_encode(array(
+            echo json_encode([
                 "success" => false,
                 "message" => "Invalid JSON: " . json_last_error_msg()
-            ));
+            ]);
             exit();
         }
+
         $controller->updateEmployee($data);
         break;
-    
+
+    // ------------------------------
+    // DELETE: soft delete employee
+    // ------------------------------
     case 'DELETE':
-        // Soft delete employee (organization-scoped)
+
         if ($id) {
-            $data = (object)['id' => $id, 'employment_status' => 'terminated'];
+            $data = (object)[
+                'id' => $id,
+                'employment_status' => 'terminated'
+            ];
             $controller->updateEmployee($data);
         } else {
             http_response_code(400);
-            echo json_encode(array(
+            echo json_encode([
                 "success" => false,
                 "message" => "Employee ID required"
-            ));
+            ]);
         }
         break;
-    
+
+    // ------------------------------
+    // METHOD NOT ALLOWED
+    // ------------------------------
     default:
         http_response_code(405);
-        echo json_encode(array(
+        echo json_encode([
             "success" => false,
             "message" => "Method not allowed"
-        ));
+        ]);
         break;
 }
+
 ?>

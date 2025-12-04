@@ -211,14 +211,16 @@ class SecurityMiddleware {
     /**
      * Verify JWT token
      */
+    /**
+ * Verify JWT token (actually our session token) and return full session data
+ */
     public static function verifyToken($token = null) {
+        // Extract token from Authorization header if not provided
         if ($token === null) {
             $headers = getallheaders();
-            if (isset($headers['Authorization'])) {
-                $auth_header = $headers['Authorization'];
-                if (preg_match('/Bearer\s+(.*)$/i', $auth_header, $matches)) {
-                    $token = $matches[1];
-                }
+            $auth_header = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+            if (preg_match('/Bearer\s+(\S+)/i', $auth_header, $matches)) {
+                $token = $matches[1];
             }
         }
 
@@ -228,22 +230,25 @@ class SecurityMiddleware {
             exit();
         }
 
-        // Implement JWT verification here
-        // For now, just check if token exists in database
         try {
-            $database = new Database();
-            $db = $database->getConnection();
+            $db = (new Database())->getConnection();
 
-            $query = "SELECT s.user_id, s.user_type, s.expires_at
-                     FROM user_sessions s
-                     WHERE s.session_token = :token
-                       AND s.is_active = 1
-                       AND s.expires_at > NOW()";
+            // THIS IS THE CORRECT QUERY — gets user_type + employee_id if it's an employee
+            $query = "
+                SELECT 
+                    us.user_id,
+                    us.user_type,
+                    eu.employee_id
+                FROM user_sessions us
+                LEFT JOIN employee_users eu ON us.user_id = eu.id AND us.user_type = 'employee'
+                WHERE us.session_token = :token
+                AND us.is_active = 1
+                AND us.expires_at > NOW()
+                LIMIT 1
+            ";
 
             $stmt = $db->prepare($query);
-            $stmt->bindParam(":token", $token);
-            $stmt->execute();
-
+            $stmt->execute([':token' => $token]);
             $session = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$session) {
@@ -252,8 +257,14 @@ class SecurityMiddleware {
                 exit();
             }
 
+            // Ensure employee_id is properly set (null for HR, actual ID for employees)
+            $session['employee_id'] = ($session['user_type'] === 'employee') 
+                ? (int)$session['employee_id'] 
+                : null;
+
             return $session;
-        } catch (PDOException $e) {
+
+        } catch (Exception $e) {
             http_response_code(500);
             echo json_encode(['success' => false, 'message' => 'Authentication failed']);
             exit();

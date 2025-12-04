@@ -18,8 +18,8 @@ class Database {
     public function __construct() {
         // Load from environment variables with fallback to defaults
         $this->host = EnvLoader::get('DB_HOST', 'localhost');
-        $this->database_name = EnvLoader::get('DB_NAME', 'evolve_payroll');
-        $this->username = EnvLoader::get('DB_USER', 'root');
+        $this->database_name = EnvLoader::get('DB_NAME', '');
+        $this->username = EnvLoader::get('DB_USER', '');
         $this->password = EnvLoader::get('DB_PASS', '');
         $this->charset = EnvLoader::get('DB_CHARSET', 'utf8mb4');
     }

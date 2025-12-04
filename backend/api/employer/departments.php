@@ -4,8 +4,8 @@
  * FINAL CLEAN VERSION — Matches your real SQL schema.
  */
 
-require_once '../../config/database.php';
-require_once '../../middleware/SecurityMiddleware.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../middleware/SecurityMiddleware.php';
 
 // CORS + headers
 SecurityMiddleware::handleCORS();

@@ -50,6 +50,7 @@ import {
   AccessTime,
   RequestQuote,
   Edit,
+  Receipt,
   Logout,
   Menu as MenuIcon,
 } from "@mui/icons-material";
@@ -278,7 +279,7 @@ export default function EmployeePortal() {
     { id: "profile", label: "My Profile", icon: <Person /> },
     { id: "documents", label: "My Documents", icon: <Download /> },
     { id: "payslip", label: "My Salary", icon: <RequestQuote /> },
-    { id: "payslips", label: "Payslips", icon: <RequestQuote /> },
+    { id: "payslips", label: "Payslips", icon: <Receipt /> },
     { id: "leave", label: "Leave Management", icon: <EventAvailable /> },
     { id: "attendance", label: "Attendance", icon: <AccessTime /> },
   ];

@@ -19,8 +19,8 @@
  * Uses employee_no (not employee_number) and full field set.
  */
 
-require_once '../../config/database.php';
-require_once '../../middleware/SecurityMiddleware.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../middleware/SecurityMiddleware.php';
 
 // Headers / CORS
 SecurityMiddleware::handleCORS();

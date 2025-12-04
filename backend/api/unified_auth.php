@@ -3,9 +3,8 @@
  * Unified Authentication API
  * Handles login for both employer and employee users
  */
-
-require_once '../config/database.php';
-require_once '../middleware/SecurityMiddleware.php';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../middleware/SecurityMiddleware.php';
 
 // Apply security & headers
 SecurityMiddleware::handleCORS();
@@ -14,6 +13,7 @@ header("Content-Type: application/json; charset=UTF-8");
 
 $database = new Database();
 $db = $database->getConnection();
+
 $method = $_SERVER["REQUEST_METHOD"];
 
 if ($method !== "POST") {
@@ -64,9 +64,9 @@ try {
     $stmt->execute([":username" => $username]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // --------------------------------------------------------
-    // 2. IF NOT FOUND → TRY EMPLOYEE USER
-    // --------------------------------------------------------
+    // // --------------------------------------------------------
+    // // 2. IF NOT FOUND → TRY EMPLOYEE USER
+    // // --------------------------------------------------------
     if (!$user) {
         $sqlEmployee = "
             SELECT
@@ -93,6 +93,9 @@ try {
         $stmt->execute([":username" => $username]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
     }
+
+        // --------------------------------------------------------
+    
 
     // --------------------------------------------------------
     // 3. USER NOT FOUND

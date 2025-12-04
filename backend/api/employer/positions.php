@@ -12,8 +12,8 @@ error_reporting(E_ALL);
 
 
 
-require_once '../../config/database.php';
-require_once '../../middleware/SecurityMiddleware.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../middleware/SecurityMiddleware.php';
 
 // Apply security measures
 SecurityMiddleware::handleCORS();

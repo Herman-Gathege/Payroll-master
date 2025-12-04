@@ -7,8 +7,8 @@
  * Requires employer authentication (SecurityMiddleware::verifyToken)
  */
 
-require_once '../../config/database.php';
-require_once '../../middleware/SecurityMiddleware.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../middleware/SecurityMiddleware.php';
 
 SecurityMiddleware::handleCORS();
 SecurityMiddleware::applySecurityHeaders();

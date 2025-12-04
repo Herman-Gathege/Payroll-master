@@ -1,55 +1,59 @@
 <?php
-// backend/api/salary_structures.php
-
-header('Access-Control-Allow-Origin: *');
-header('Content-Type: application/json');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-User');
+// public_html/api/salary_structures.php
 
 require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../controllers/SalaryStructureController.php';
-require_once __DIR__ . '/../middleware/auth.php';
 require_once __DIR__ . '/../middleware/SecurityMiddleware.php';
+require_once __DIR__ . '/../controllers/SalaryStructureController.php';
 
-
-
+// === UNIFIED SECURITY (same as local) ===
 SecurityMiddleware::handleCORS();
-SecurityMiddleware::applySecurityHeaders(); 
+SecurityMiddleware::applySecurityHeaders();
+SecurityMiddleware::checkRateLimit('salary_structures', 100, 60);
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit;
 }
 
-// -----------------------------------------------------------
-// AUTH + EXTRACT USER FROM X-USER HEADER
-// -----------------------------------------------------------
-// --- replace existing AuthMiddleware::validateToken(); + header reading block with:
-$auth = authenticateRequest();
-if (!$auth['success']) {
+$db = (new Database())->getConnection();
+
+try {
+    $session = SecurityMiddleware::verifyToken();   // This is the fixed version you already have
+} catch (Exception $e) {
     http_response_code(401);
-    echo json_encode(['success' => false, 'message' => $auth['message'] ?? 'Authentication required']);
+    echo json_encode(['success' => false, 'message' => 'Authentication required']);
     exit;
 }
 
-$user = $auth['user'];
-$org_id = $user['organization_id'];
-// $org_id is now safe to use for controller instantiation
+$user_id     = $session['user_id'];
+$user_type   = $session['user_type'];
+$employee_id = $session['employee_id'] ?? null;
 
+// Only HR / Admin can manage salary structures
+if (!in_array($user_type, ['hr', 'admin', 'employer'])) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Access denied']);
+    exit;
+}
 
+// Get organization_id for this HR/admin user
+$stmt = $db->prepare("SELECT organization_id FROM employer_users WHERE id = ? LIMIT 1");
+$stmt->execute([$user_id]);
+$org = $stmt->fetch(PDO::FETCH_ASSOC);
 
-// -----------------------------------------------------------
-// CONTROLLER INSTANCE
-// -----------------------------------------------------------
-$database = new Database();
-$db = $database->getConnection();
+if (!$org) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Organization not found']);
+    exit;
+}
+
+$org_id = (int)$org['organization_id'];
+
+// Controller
 $controller = new SalaryStructureController($db, $org_id);
+$method     = $_SERVER['REQUEST_METHOD'];
 
-$method = $_SERVER['REQUEST_METHOD'];
-
-// -----------------------------------------------------------
-// CREATE STRUCTURE
-// -----------------------------------------------------------
+// ==================== CREATE ====================
 if ($method === 'POST') {
     $payload = json_decode(file_get_contents("php://input"), true);
 
@@ -75,20 +79,16 @@ if ($method === 'POST') {
     exit;
 }
 
-// -----------------------------------------------------------
-// LIST STRUCTURES
-// -----------------------------------------------------------
+// ==================== LIST ALL ====================
 if ($method === 'GET' && !isset($_GET['id'])) {
     $data = $controller->getAll();
     echo json_encode(['success' => true, 'data' => $data]);
     exit;
 }
 
-// -----------------------------------------------------------
-// GET ONE STRUCTURE
-// -----------------------------------------------------------
+// ==================== GET ONE ====================
 if ($method === 'GET' && isset($_GET['id'])) {
-    $id = (int)$_GET['id'];
+    $id   = (int)$_GET['id'];
     $data = $controller->getOne($id);
 
     if (!$data) {
@@ -101,12 +101,9 @@ if ($method === 'GET' && isset($_GET['id'])) {
     exit;
 }
 
-// -----------------------------------------------------------
-// UPDATE STRUCTURE
-// -----------------------------------------------------------
+// ==================== UPDATE ====================
 if ($method === 'PUT') {
     $id = $_GET['id'] ?? null;
-
     if (!$id) {
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'id is required']);
@@ -121,7 +118,6 @@ if ($method === 'PUT') {
         if (isset($payload['allowances'])) {
             $controller->saveAllowances($id, $payload['allowances']);
         }
-
         if (isset($payload['benefits'])) {
             $controller->saveBenefits($id, $payload['benefits']);
         }
@@ -134,5 +130,6 @@ if ($method === 'PUT') {
     exit;
 }
 
+// ==================== METHOD NOT ALLOWED ====================
 http_response_code(405);
 echo json_encode(['success' => false, 'message' => 'Method not allowed']);
