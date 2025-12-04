@@ -16,12 +16,15 @@ import {
 } from "@mui/material";
 import employeeService from "../services/employeeService";
 import documentService from "../services/documentService";
+import employeeSalaryService from "../services/employeeSalaryService";
 
 export default function EmployeeDetail() {
   const { id } = useParams();
   const [employee, setEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
   const [documents, setDocuments] = useState([]);
+  const [salaryStructure, setSalaryStructure] = useState(null);
+  const [loadingSalary, setLoadingSalary] = useState(true);
   const [loadingDocs, setLoadingDocs] = useState(true);
   const navigate = useNavigate();
 
@@ -52,6 +55,21 @@ export default function EmployeeDetail() {
     }
 
     loadDocs();
+  }, [id]);
+
+  useEffect(() => {
+    async function loadSalaryStructure() {
+      try {
+        const res = await employeeSalaryService.getEmployeeSalary(id);
+        if (res.data?.data) setSalaryStructure(res.data.data);
+      } catch (error) {
+        console.error("Failed to load salary structure:", error);
+      } finally {
+        setLoadingSalary(false);
+      }
+    }
+
+    loadSalaryStructure();
   }, [id]);
 
   if (loading) return <CircularProgress />;
@@ -169,6 +187,64 @@ export default function EmployeeDetail() {
                   <strong>Hire Date:</strong> {employee.hire_date}
                 </Typography>
               </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* SALARY STRUCTURE SUMMARY */}
+        <Grid item xs={12}>
+          <Card sx={{ borderRadius: 3 }}>
+            <CardContent>
+              <Typography variant="h6" sx={{ mb: 1 }}>
+                Salary Structure
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+
+              {loadingSalary ? (
+                <CircularProgress />
+              ) : !salaryStructure ? (
+                <Typography>No salary structure assigned.</Typography>
+              ) : (
+                <Stack spacing={1.5}>
+                  <Typography>
+                    <strong>Structure:</strong> {salaryStructure.title}
+                  </Typography>
+                  <Typography>
+                    <strong>Basic Salary:</strong> KES{" "}
+                    {Number(salaryStructure.basic_salary).toLocaleString()}
+                  </Typography>
+
+                  <Divider />
+
+                  <Typography variant="subtitle1" sx={{ mt: 1 }}>
+                    Allowances
+                  </Typography>
+
+                  {(salaryStructure.allowances ?? []).length === 0 && (
+                    <Typography>No allowances.</Typography>
+                  )}
+
+                  {(salaryStructure.allowances ?? []).map((a) => (
+                    <Typography key={a.id}>
+                      • {a.name}: KES {Number(a.amount).toLocaleString()}
+                    </Typography>
+                  ))}
+
+                  <Divider sx={{ my: 1 }} />
+
+                  <Typography variant="subtitle1">Benefits</Typography>
+
+                  {(salaryStructure.benefits ?? []).length === 0 && (
+                    <Typography>No benefits.</Typography>
+                  )}
+
+                  {(salaryStructure.benefits ?? []).map((b) => (
+                    <Typography key={b.id}>
+                      • {b.name}: KES {Number(b.amount).toLocaleString()}
+                    </Typography>
+                  ))}
+                </Stack>
+              )}
             </CardContent>
           </Card>
         </Grid>
