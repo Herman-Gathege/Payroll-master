@@ -50,12 +50,13 @@ export default function AddEmployee() {
     position_id: "",
     basic_salary: "",
     currency: "KES",
+    country_code: "+254", // NEW DEFAULT FIELD
   });
 
   const [departments, setDepartments] = useState([]);
   const [positions, setPositions] = useState([]);
   const [structures, setStructures] = useState([]);
-  const [selectedStructure, setSelectedStructure] = useState(""); // structure id 
+  const [selectedStructure, setSelectedStructure] = useState(""); // structure id
   const [errors, setErrors] = useState({});
 
   // Load next employee number
@@ -221,6 +222,12 @@ export default function AddEmployee() {
         newErrors.date_of_birth = "Employee must be at least 16 years old";
       if (age > 100)
         newErrors.date_of_birth = "Employee age cannot exceed 100 years";
+
+      if (!formData.phone) {
+        newErrors.phone = "Phone number is required";
+      } else if (formData.phone.length !== 9) {
+        newErrors.phone = "Phone must be 9 digits (e.g., 712345678)";
+      }
     }
 
     if (!formData.gender) newErrors.gender = "Gender is required";
@@ -236,11 +243,18 @@ export default function AddEmployee() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (validateForm()) {
-      createMutation.mutate(formData);
-    } else {
+
+    if (!validateForm()) {
       toast.error("Please fix validation errors");
+      return;
     }
+
+    const payload = {
+      ...formData,
+      phone: formData.country_code + formData.phone, // Combine here
+    };
+
+    createMutation.mutate(payload);
   };
 
   const handleCancel = () => navigate("/employer/employees");
@@ -325,16 +339,47 @@ export default function AddEmployee() {
 
             {/* PHONE */}
             <Grid item xs={12} sm={6} md={4}>
-              <TextField
-                label="Phone Number"
-                fullWidth
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                error={!!errors.phone}
-                helperText={errors.phone}
-                required
-              />
+              <Box display="flex" gap={1}>
+                {/* Country Code Picker */}
+                <TextField
+                  select
+                  label="Code"
+                  name="country_code"
+                  value={formData.country_code}
+                  onChange={handleChange}
+                  sx={{ width: "50%" }}
+                >
+                  <MenuItem value="+254">🇰🇪 +254 (Kenya)</MenuItem>
+                  <MenuItem value="+255">🇹🇿 +255 (Tanzania)</MenuItem>
+                  <MenuItem value="+256">🇺🇬 +256 (Uganda)</MenuItem>
+                  {/* You can add more later */}
+                </TextField>
+
+                {/* Local Phone Number */}
+                <TextField
+                  label="Phone Number"
+                  fullWidth
+                  name="phone"
+                  value={formData.phone}
+                  onChange={(e) => {
+                    // Allow only digits and max 9 characters
+                    const cleaned = e.target.value
+                      .replace(/\D/g, "")
+                      .slice(0, 9);
+                    setFormData((prev) => ({ ...prev, phone: cleaned }));
+
+                    if (errors.phone) {
+                      setErrors((prev) => ({ ...prev, phone: null }));
+                    }
+                  }}
+                  inputProps={{ maxLength: 9 }}
+                  error={!!errors.phone}
+                  helperText={
+                    errors.phone || "Enter 9-digit phone e.g., 712345678"
+                  }
+                  required
+                />
+              </Box>
             </Grid>
 
             {/* EMAILS */}
@@ -532,15 +577,37 @@ export default function AddEmployee() {
 
             {/* SALARY */}
             <Grid item xs={12} sm={6} md={4}>
-              <TextField
-                label="Salary"
-                fullWidth
-                type="number"
-                name="basic_salary"
-                value={formData.basic_salary}
-                onChange={handleChange}
-                InputProps={{ readOnly: !!selectedStructure }}
-              />
+              <Box display="flex" gap={1}>
+                {/* Currency Picker */}
+                <TextField
+                  select
+                  label="Currency"
+                  name="currency"
+                  value={formData.currency}
+                  onChange={handleChange}
+                  sx={{ width: "45%" }}
+                  disabled={!!selectedStructure} // salary locked
+                >
+                  <MenuItem value="KES">🇰🇪 KES</MenuItem>
+                  <MenuItem value="USD">🇺🇸 USD</MenuItem>
+                  <MenuItem value="EUR">🇪🇺 EUR</MenuItem>
+                  <MenuItem value="GBP">🇬🇧 GBP</MenuItem>
+                  <MenuItem value="TZS">🇹🇿 TZS</MenuItem>
+                  <MenuItem value="UGX">🇺🇬 UGX</MenuItem>
+                </TextField>
+
+                {/* Salary Amount */}
+                <TextField
+                  label="Salary Amount"
+                  fullWidth
+                  type="number"
+                  name="basic_salary"
+                  value={formData.basic_salary}
+                  onChange={handleChange}
+                  InputProps={{ readOnly: !!selectedStructure }}
+                  required
+                />
+              </Box>
             </Grid>
           </Grid>
 
