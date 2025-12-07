@@ -13,6 +13,8 @@ class SalaryStructure {
     public $active_to;
     public $status;
     public $created_by;
+    public $currency;
+
 
     public function __construct($db) {
         $this->conn = $db;
@@ -20,7 +22,7 @@ class SalaryStructure {
 
     // create structure with allowances and benefits handled in controller (transaction)
     public function create() {
-        $sql = "INSERT INTO salary_structures (organization_id, title, description, basic_salary, is_template, active_from, active_to, status, created_by)
+        $sql = "INSERT INTO salary_structures (organization_id, title, description, basic_salary, is_template, active_from, active_to, status, created_by, currency)
                 VALUES (:organization_id, :title, :description, :basic_salary, :is_template, :active_from, :active_to, :status, :created_by)";
         $stmt = $this->conn->prepare($sql);
         $stmt->bindValue(':organization_id', $this->organization_id, PDO::PARAM_INT);
@@ -32,6 +34,7 @@ class SalaryStructure {
         $stmt->bindValue(':active_to', $this->active_to);
         $stmt->bindValue(':status', $this->status ?: 'active');
         $stmt->bindValue(':created_by', $this->created_by);
+        $stmt->bindValue(':currency', $this->currency);
         if ($stmt->execute()) {
             $this->id = $this->conn->lastInsertId();
             return true;

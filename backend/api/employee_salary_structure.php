@@ -126,14 +126,22 @@ if ($method === 'GET') {
             es.structure_id,
             es.effective_from,
             es.notes,
+
+            -- Structure details
             s.title,
             s.basic_salary,
-            s.description
+            s.currency,
+            s.description,
+
+            -- Optional future fields (won't break anything)
+            s.gross_salary,
+            s.net_salary
         FROM employee_salary_structure es
         LEFT JOIN salary_structures s ON s.id = es.structure_id
         WHERE es.employee_id = :eid AND es.is_active = 1
         LIMIT 1
     ");
+
     $stmt->execute([':eid' => $employee_id]);
     $assign = $stmt->fetch(PDO::FETCH_ASSOC);
 

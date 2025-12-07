@@ -155,7 +155,7 @@ echo json_encode([
             "basic_salary"   => (float)$structure['basic_salary'],
             "gross_salary"   => $gross,
             "net_salary"     => $net,
-            "currency"       => "KES",
+            "currency"       => $structure['currency'],
             "effective_from" => $assignment['effective_from'] ?? null,
             "effective_to"   => $assignment['effective_to'] ?? null,
             "allowances"     => $allowances,

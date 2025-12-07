@@ -6,9 +6,10 @@ import {
   Button,
   Divider,
   Paper,
-} from '@mui/material';
-import AllowanceRow from './AllowanceRow';
-import BenefitRow from './BenefitRow';
+  MenuItem,
+} from "@mui/material";
+import AllowanceRow from "./AllowanceRow";
+import BenefitRow from "./BenefitRow";
 
 export default function SalaryStructureForm({
   form,
@@ -19,7 +20,7 @@ export default function SalaryStructureForm({
   const addAllowance = () => {
     setForm({
       ...form,
-      allowances: [...form.allowances, { name: '', amount: 0, taxable: 1 }],
+      allowances: [...form.allowances, { name: "", amount: 0, taxable: 1 }],
     });
   };
 
@@ -40,7 +41,7 @@ export default function SalaryStructureForm({
       ...form,
       benefits: [
         ...form.benefits,
-        { name: '', amount: 0, benefit_type: 'cash', taxable: 0, notes: '' },
+        { name: "", amount: 0, benefit_type: "cash", taxable: 0, notes: "" },
       ],
     });
   };
@@ -60,7 +61,7 @@ export default function SalaryStructureForm({
   return (
     <Paper sx={{ p: 3 }}>
       <Typography variant="h6" mb={2}>
-        {isEdit ? 'Edit Salary Structure' : 'Create Salary Structure'}
+        {isEdit ? "Edit Salary Structure" : "Create Salary Structure"}
       </Typography>
 
       {/* Basic details */}
@@ -72,14 +73,32 @@ export default function SalaryStructureForm({
         sx={{ mb: 2 }}
       />
 
-      <TextField
-        label="Basic Salary"
-        type="number"
-        fullWidth
-        value={form.basic_salary}
-        onChange={(e) => setForm({ ...form, basic_salary: e.target.value })}
-        sx={{ mb: 3 }}
-      />
+      <Box display="flex" gap={2} sx={{ mb: 3 }}>
+        {/* Currency Picker */}
+        <TextField
+          select
+          label="Currency"
+          value={form.currency}
+          onChange={(e) => setForm({ ...form, currency: e.target.value })}
+          sx={{ width: "30%" }}
+        >
+          <MenuItem value="KES">🇰🇪 KES</MenuItem>
+          <MenuItem value="TZS">🇹🇿 TZS</MenuItem>
+          <MenuItem value="UGX">🇺🇬 UGX</MenuItem>
+          <MenuItem value="USD">🇺🇸 USD</MenuItem>
+          <MenuItem value="GBP">🇬🇧 GBP</MenuItem>
+          <MenuItem value="EUR">🇪🇺 EUR</MenuItem>
+        </TextField>
+
+        {/* Salary Input */}
+        <TextField
+          label="Basic Salary"
+          type="number"
+          fullWidth
+          value={form.basic_salary}
+          onChange={(e) => setForm({ ...form, basic_salary: e.target.value })}
+        />
+      </Box>
 
       <Divider sx={{ my: 3 }} />
 
@@ -117,7 +136,7 @@ export default function SalaryStructureForm({
 
       <Box textAlign="right" mt={4}>
         <Button variant="contained" onClick={onSubmit}>
-          {isEdit ? 'Update Structure' : 'Create Structure'}
+          {isEdit ? "Update Structure" : "Create Structure"}
         </Button>
       </Box>
     </Paper>

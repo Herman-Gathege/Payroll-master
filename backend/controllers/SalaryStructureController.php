@@ -18,7 +18,7 @@ class SalaryStructureController
 
     public function getAll()
     {
-        $sql = "SELECT id, title, basic_salary, description, created_at 
+        $sql = "SELECT id, title, basic_salary, description, created_at, currency 
                 FROM salary_structures 
                 WHERE organization_id = :org 
                 ORDER BY created_at DESC";
@@ -30,7 +30,7 @@ class SalaryStructureController
     public function getOne($id)
     {
         // Main structure
-        $sql = "SELECT id, title, basic_salary, description, created_at 
+        $sql = "SELECT id, title, basic_salary, description, created_at, currency 
                 FROM salary_structures 
                 WHERE id = :id AND organization_id = :org LIMIT 1";
         $stmt = $this->db->prepare($sql);
@@ -63,15 +63,17 @@ class SalaryStructureController
     public function create($data)
     {
         $sql = "INSERT INTO salary_structures 
-                (organization_id, title, basic_salary, description) 
-                VALUES (:org, :title, :basic_salary, :description)";
+                (organization_id, title, basic_salary, currency, description) 
+                VALUES (:org, :title, :basic_salary, :currency, :description)";
+
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
             ':org' => $this->org_id,
             ':title' => $data['title'],
             ':basic_salary' => $data['basic_salary'],
-            ':description' => $data['description'] ?? null
+            ':description' => $data['description'] ?? null,
+            ':currency' => $data['currency'] ?? "KES"
         ]);
 
         return $this->db->lastInsertId();
@@ -82,7 +84,8 @@ class SalaryStructureController
         $sql = "UPDATE salary_structures SET 
                     title = :title, 
                     basic_salary = :basic_salary, 
-                    description = :description
+                    description = :description,
+                    currency = :currency
                 WHERE id = :id AND organization_id = :org";
 
         $stmt = $this->db->prepare($sql);
@@ -90,6 +93,7 @@ class SalaryStructureController
             ':title' => $data['title'],
             ':basic_salary' => $data['basic_salary'],
             ':description' => $data['description'] ?? null,
+            ':currency' => $data['currency'] ?? "KES",
             ':id' => $id,
             ':org' => $this->org_id
         ]);

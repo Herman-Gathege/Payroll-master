@@ -13,6 +13,7 @@ export default function SalaryStructureCreate() {
     basic_salary: "",
     allowances: [],
     benefits: [],
+    currency: "KES",
   });
 
   const submit = async () => {
