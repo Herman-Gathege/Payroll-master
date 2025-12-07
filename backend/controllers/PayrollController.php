@@ -480,6 +480,13 @@ public function getPayrollById($payroll_id)
 
         'basic_salary'      => (float)$p['basic_salary'],
         'gross_pay'         => (float)$p['gross_pay'],
+        'taxable_income'    => (float)($p['taxable_income'] ?? 0),
+        'paye'              => (float)$p['paye'],
+        'nssf_employee'     => (float)$p['nssf_employee'],
+        'nssf_employer'     => (float)($p['nssf_employer'] ?? 0), // optional
+        'shif'              => (float)$p['shif'],
+        'housing_levy'      => (float)$p['housing_levy'],
+        'personal_relief'   => (float)$p['personal_relief'],
         'total_deductions'  => (float)$p['total_deductions'],
         'net_pay'           => (float)$p['net_pay'],
 
@@ -489,6 +496,7 @@ public function getPayrollById($payroll_id)
         'allowances'        => $allowances,
         'benefits'          => $benefits
     ];
+
 }
 
 
