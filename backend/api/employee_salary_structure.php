@@ -119,7 +119,7 @@ if ($method === 'GET') {
         exit;
     }
 
-    $stmt = $db->prepare("
+        $stmt = $db->prepare("
         SELECT 
             es.id AS assignment_id,
             es.employee_id,
@@ -131,16 +131,15 @@ if ($method === 'GET') {
             s.title,
             s.basic_salary,
             s.currency,
-            s.description,
+            s.description
 
-            -- Optional future fields (won't break anything)
-            s.gross_salary,
-            s.net_salary
+            -- No gross/net salary fields in salary_structures table
         FROM employee_salary_structure es
         LEFT JOIN salary_structures s ON s.id = es.structure_id
         WHERE es.employee_id = :eid AND es.is_active = 1
         LIMIT 1
     ");
+
 
     $stmt->execute([':eid' => $employee_id]);
     $assign = $stmt->fetch(PDO::FETCH_ASSOC);

@@ -2,7 +2,14 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useMutation } from "react-query";
 import {
-  Box, Paper, Typography, TextField, Button, Grid, MenuItem, Divider
+  Box,
+  Paper,
+  Typography,
+  TextField,
+  Button,
+  Grid,
+  MenuItem,
+  Divider,
 } from "@mui/material";
 import { Save, Cancel } from "@mui/icons-material";
 import { toast } from "react-toastify";
@@ -10,7 +17,6 @@ import { toast } from "react-toastify";
 import employeeService from "../services/employeeService";
 import { getDepartments } from "../services/departmentsService";
 import { getPositions } from "../services/positionsService";
-
 import { primaryButtonStyle } from "../styles/buttonStyles";
 
 export default function EditEmployee() {
@@ -19,7 +25,6 @@ export default function EditEmployee() {
 
   const [formData, setFormData] = useState(null);
   const [errors, setErrors] = useState({});
-
   const [departments, setDepartments] = useState([]);
   const [positions, setPositions] = useState([]);
 
@@ -29,9 +34,23 @@ export default function EditEmployee() {
       try {
         const res = await employeeService.getEmployee(id);
         if (res.success) {
+          const emp = res.data;
+
+          // Extract phone
+          const fullPhone = emp.phone || "";
+          let country_code = "+254";
+          let phone = "";
+
+          if (fullPhone.startsWith("+")) {
+            country_code = fullPhone.slice(0, 4); // e.g. +254
+            phone = fullPhone.slice(4); // remaining 9 digits
+          }
+
           setFormData({
-            ...res.data,
-            id: res.data.id, // required for PUT
+            ...emp,
+            id: emp.id,
+            country_code,
+            phone,
           });
         }
       } catch (error) {
@@ -47,12 +66,11 @@ export default function EditEmployee() {
       try {
         const [deptRes, posRes] = await Promise.all([
           getDepartments(),
-          getPositions()
+          getPositions(),
         ]);
 
         setDepartments(deptRes.data?.data || []);
         setPositions(posRes.data?.data || []);
-
       } catch (err) {
         toast.error("Failed to load dropdown data");
       }
@@ -61,6 +79,7 @@ export default function EditEmployee() {
     loadDropDowns();
   }, []);
 
+  // -------------------- UPDATE EMPLOYEE ----------------------
   const updateMutation = useMutation(employeeService.updateEmployee, {
     onSuccess: () => {
       toast.success("Employee updated successfully!");
@@ -71,40 +90,49 @@ export default function EditEmployee() {
     },
   });
 
+  // ------------------ Handle Change ------------------
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: null }));
     }
   };
 
+  // ------------------ Validation ------------------
   const validateForm = () => {
-    const required = [
-      "first_name",
-      "last_name",
-      "phone",
-      "work_email",
-      "hire_date",
-      "department_id",
-      "position_id",
-    ];
-
     const newErrors = {};
 
-    required.forEach((field) => {
-      if (!formData[field]) newErrors[field] = "This field is required";
-    });
+    if (!formData.first_name) newErrors.first_name = "Required";
+    if (!formData.last_name) newErrors.last_name = "Required";
+    if (!formData.phone) newErrors.phone = "Required";
+    if (formData.phone && formData.phone.length !== 9)
+      newErrors.phone = "Phone must be 9 digits";
+    if (!formData.work_email) newErrors.work_email = "Required";
+    if (!formData.hire_date) newErrors.hire_date = "Required";
+    if (!formData.department_id) newErrors.department_id = "Required";
+    if (!formData.position_id) newErrors.position_id = "Required";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  // ------------------ SUBMIT ------------------
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!validateForm()) return toast.error("Fix validation errors");
 
-    updateMutation.mutate(formData);
+    if (!validateForm()) {
+      toast.error("Please fix validation errors");
+      return;
+    }
+
+    const payload = {
+      ...formData,
+      phone: formData.country_code + formData.phone, // combine into one string
+    };
+
+    updateMutation.mutate(payload); // FIXED
   };
 
   if (!formData) return <Typography>Loading employee...</Typography>;
@@ -119,23 +147,13 @@ export default function EditEmployee() {
 
       <Paper sx={{ p: 4 }}>
         <form onSubmit={handleSubmit}>
-        
           <Typography variant="h6" sx={{ color: "primary.main", mb: 1 }}>
             Personal Information
           </Typography>
           <Divider sx={{ mb: 3 }} />
 
           <Grid container spacing={3}>
-            <Grid item xs={12} sm={6} md={4}>
-              <TextField
-                label="Employee Number"
-                fullWidth
-                value={formData.employee_no}
-                name="employee_no"
-                disabled
-              />
-            </Grid>
-
+            {/* First Name */}
             <Grid item xs={12} sm={6} md={4}>
               <TextField
                 label="First Name"
@@ -149,6 +167,7 @@ export default function EditEmployee() {
               />
             </Grid>
 
+            {/* Middle */}
             <Grid item xs={12} sm={6} md={4}>
               <TextField
                 label="Middle Name"
@@ -159,6 +178,7 @@ export default function EditEmployee() {
               />
             </Grid>
 
+            {/* Last Name */}
             <Grid item xs={12} sm={6} md={4}>
               <TextField
                 label="Last Name"
@@ -172,19 +192,45 @@ export default function EditEmployee() {
               />
             </Grid>
 
+            {/* PHONE NUMBER */}
             <Grid item xs={12} sm={6} md={4}>
-              <TextField
-                label="Phone Number"
-                fullWidth
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                error={!!errors.phone}
-                helperText={errors.phone}
-                required
-              />
+              <Box display="flex" gap={1}>
+                <TextField
+                  select
+                  label="Code"
+                  name="country_code"
+                  value={formData.country_code}
+                  onChange={handleChange}
+                  sx={{ width: "50%" }}
+                >
+                  <MenuItem value="+254">🇰🇪 +254 (Kenya)</MenuItem>
+                  <MenuItem value="+255">🇹🇿 +255 (Tanzania)</MenuItem>
+                  <MenuItem value="+256">🇺🇬 +256 (Uganda)</MenuItem>
+                </TextField>
+
+                <TextField
+                  label="Phone Number"
+                  fullWidth
+                  name="phone"
+                  value={formData.phone}
+                  onChange={(e) => {
+                    const cleaned = e.target.value.replace(/\D/g, "").slice(0, 9);
+                    setFormData((prev) => ({ ...prev, phone: cleaned }));
+                    if (errors.phone) {
+                      setErrors((prev) => ({ ...prev, phone: null }));
+                    }
+                  }}
+                  inputProps={{ maxLength: 9 }}
+                  error={!!errors.phone}
+                  helperText={
+                    errors.phone || "Enter 9-digit phone e.g., 712345678"
+                  }
+                  required
+                />
+              </Box>
             </Grid>
 
+            {/* EMAIL */}
             <Grid item xs={12} sm={6}>
               <TextField
                 label="Work Email"
@@ -198,9 +244,9 @@ export default function EditEmployee() {
               />
             </Grid>
 
+            {/* DOB */}
             <Grid item xs={12} sm={6}>
               <TextField
-                label="Date of Birth"
                 type="date"
                 fullWidth
                 name="date_of_birth"
@@ -210,6 +256,7 @@ export default function EditEmployee() {
               />
             </Grid>
 
+            {/* GENDER */}
             <Grid item xs={12} sm={6}>
               <TextField
                 select
@@ -224,13 +271,14 @@ export default function EditEmployee() {
             </Grid>
           </Grid>
 
+          {/* EMPLOYMENT INFO */}
           <Typography variant="h6" sx={{ color: "primary.main", mt: 4 }}>
             Employment Information
           </Typography>
           <Divider sx={{ mb: 3 }} />
 
           <Grid container spacing={3}>
-            {/* ---------------- Department dropdown ---------------- */}
+            {/* DEPARTMENT */}
             <Grid item xs={12} sm={6} md={4}>
               <TextField
                 select
@@ -251,7 +299,7 @@ export default function EditEmployee() {
               </TextField>
             </Grid>
 
-            {/* ---------------- Position dropdown ---------------- */}
+            {/* POSITION */}
             <Grid item xs={12} sm={6} md={4}>
               <TextField
                 select
@@ -272,6 +320,7 @@ export default function EditEmployee() {
               </TextField>
             </Grid>
 
+            {/* HIRE DATE */}
             <Grid item xs={12} sm={6} md={4}>
               <TextField
                 type="date"
@@ -288,12 +337,22 @@ export default function EditEmployee() {
             </Grid>
           </Grid>
 
+          {/* ACTION BUTTONS */}
           <Box display="flex" justifyContent="flex-end" gap={2} mt={4}>
-            <Button variant="outlined" startIcon={<Cancel />} onClick={() => navigate(`/employer/employees/${id}`)}>
+            <Button
+              variant="outlined"
+              startIcon={<Cancel />}
+              onClick={() => navigate(`/employer/employees/${id}`)}
+            >
               Cancel
             </Button>
 
-            <Button type="submit" variant="contained" startIcon={<Save />} sx={primaryButtonStyle}>
+            <Button
+              type="submit"
+              variant="contained"
+              startIcon={<Save />}
+              sx={primaryButtonStyle}
+            >
               Update Employee
             </Button>
           </Box>

@@ -180,9 +180,16 @@ export default function EmployeeDetail() {
                   <strong>Employment Type:</strong> {employee.employment_type}
                 </Typography>
                 <Typography>
-                  <strong>Salary:</strong> {employee.currency}{" "}
-                  {employee.basic_salary}
+                  <strong>Salary:</strong>{" "}
+                  {salaryStructure
+                    ? `${salaryStructure.currency} ${Number(
+                        salaryStructure.basic_salary
+                      ).toLocaleString()}`
+                    : `${employee.currency} ${Number(
+                        employee.basic_salary
+                      ).toLocaleString()}`}
                 </Typography>
+
                 <Typography>
                   <strong>Hire Date:</strong> {employee.hire_date}
                 </Typography>
@@ -209,8 +216,9 @@ export default function EmployeeDetail() {
                   <Typography>
                     <strong>Structure:</strong> {salaryStructure.title}
                   </Typography>
+
                   <Typography>
-                    <strong>Basic Salary:</strong> KES{" "}
+                    <strong>Basic Salary:</strong> {salaryStructure.currency}{" "}
                     {Number(salaryStructure.basic_salary).toLocaleString()}
                   </Typography>
 
@@ -226,7 +234,8 @@ export default function EmployeeDetail() {
 
                   {(salaryStructure.allowances ?? []).map((a) => (
                     <Typography key={a.id}>
-                      • {a.name}: KES {Number(a.amount).toLocaleString()}
+                      • {a.name}: {salaryStructure.currency}{" "}
+                      {Number(a.amount).toLocaleString()}
                     </Typography>
                   ))}
 
@@ -240,7 +249,8 @@ export default function EmployeeDetail() {
 
                   {(salaryStructure.benefits ?? []).map((b) => (
                     <Typography key={b.id}>
-                      • {b.name}: KES {Number(b.amount).toLocaleString()}
+                      • {b.name}: {salaryStructure.currency}{" "}
+                      {Number(b.amount).toLocaleString()}
                     </Typography>
                   ))}
                 </Stack>
