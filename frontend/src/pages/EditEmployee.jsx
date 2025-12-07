@@ -214,7 +214,9 @@ export default function EditEmployee() {
                   name="phone"
                   value={formData.phone}
                   onChange={(e) => {
-                    const cleaned = e.target.value.replace(/\D/g, "").slice(0, 9);
+                    const cleaned = e.target.value
+                      .replace(/\D/g, "")
+                      .slice(0, 9);
                     setFormData((prev) => ({ ...prev, phone: cleaned }));
                     if (errors.phone) {
                       setErrors((prev) => ({ ...prev, phone: null }));
@@ -296,6 +298,24 @@ export default function EditEmployee() {
                     {dept.name}
                   </MenuItem>
                 ))}
+              </TextField>
+            </Grid>
+
+            {/* EMPLOYMENT STATUS */}
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                select
+                label="Employment Status"
+                fullWidth
+                name="employment_status"
+                value={formData.employment_status}
+                onChange={handleChange}
+              >
+                <MenuItem value="Active">Active</MenuItem>
+                <MenuItem value="On Leave">On Leave</MenuItem>
+                <MenuItem value="Suspended">Suspended</MenuItem>
+                <MenuItem value="Terminated">Terminated</MenuItem>
+                <MenuItem value="Retired">Retired</MenuItem>
               </TextField>
             </Grid>
 

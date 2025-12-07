@@ -519,6 +519,50 @@ public function approvePayroll($payroll_id) {
     }
 }
 
+/**
+ * Mark payroll as paid
+ */
+public function processPayment($payroll_id, $payment_method = 'bank_transfer')
+{
+    try {
+        // Prevent double payment
+        $stmt = $this->db->prepare("
+            SELECT status 
+            FROM payroll 
+            WHERE id = :id
+        ");
+        $stmt->execute([':id' => $payroll_id]);
+        $status = $stmt->fetchColumn();
+
+        if (!$status) {
+            return false;
+        }
+
+        if ($status === 'paid') {
+            return false; // already paid
+        }
+
+        // Update payroll record
+        $stmt = $this->db->prepare("
+            UPDATE payroll
+            SET status = 'paid',
+                payment_method = :method,
+                payment_date = NOW(),
+                updated_at = NOW()
+            WHERE id = :id
+        ");
+
+        return $stmt->execute([
+            ':method' => $payment_method,
+            ':id'     => $payroll_id
+        ]);
+
+    } catch (Exception $e) {
+        error_log('processPayment error: ' . $e->getMessage());
+        return false;
+    }
+}
+
 
 }
 ?>
