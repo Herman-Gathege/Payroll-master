@@ -119,6 +119,31 @@ function handleGet($payrollController, $db) {
     $action = $_GET['action'] ?? '';
 
     switch ($action) {
+
+        case 'payslip_by_id':
+            $pid = $_GET['id'] ?? null;
+
+            if (!$pid) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'Missing payroll ID']);
+                return;
+            }
+
+            $payslip = $payrollController->getPayrollById($pid);
+
+            if (!$payslip) {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Payslip not found']);
+                return;
+            }
+
+            echo json_encode([
+                'success' => true,
+                'data'    => $payslip
+            ]);
+            return;
+
+
         case 'get_payroll':
             // Get payroll for a specific period
             $month = $_GET['month'] ?? date('m');

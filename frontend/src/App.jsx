@@ -27,6 +27,7 @@ import SalaryStructureCreate from "./pages/SalaryStructures/SalaryStructureCreat
 import SalaryStructureEdit from "./pages/SalaryStructures/SalaryStructureEdit";
 import EmployeeSalaryAssignment from "./pages/employee/EmployeeSalaryAssignment";
 import MySalaryStructure from "./pages/employee/MySalaryStructure";
+import PayslipView from "./pages/PayslipView";
 
 // Employer route protection
 function EmployerRoute({ children }) {
@@ -96,6 +97,8 @@ function App() {
           <Route path="employees/new" element={<AddEmployee />} />
           <Route path="employees/:id/edit" element={<EditEmployee />} />
           <Route path="employees/:id" element={<EmployeeDetail />} />
+          <Route path="payroll/:payrollId" element={<PayslipView />} />
+
 
           <Route path="recruitment" element={<Recruitment />} />
           <Route path="leave" element={<Leave />} />

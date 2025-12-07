@@ -8,6 +8,8 @@ require_once __DIR__ . '/../utils/CalculationService.php';
 SecurityMiddleware::handleCORS();
 SecurityMiddleware::applySecurityHeaders();
 
+
+
 // Preflight is handled inside handleCORS(), no need again.
 
 // Authenticate using ONLY SecurityMiddleware

@@ -390,6 +390,108 @@ public function getPayrollSummary($month, $year)
 }
 
 
+/**
+ * Get detailed payroll by ID
+ */
+public function getPayrollById($payroll_id)
+{
+    /* -------------------------------------------------------
+       1. Load payroll record
+    ------------------------------------------------------- */
+    $sql = "
+        SELECT 
+            p.*,
+            e.first_name,
+            e.last_name,
+            e.employee_no,
+            e.work_email,
+            e.personal_email,
+
+            COALESCE(d.name, 'N/A')      AS department_name,
+            COALESCE(pos.title, 'N/A')   AS position_name,
+
+            es.structure_id
+
+        FROM payroll p
+        JOIN employees e ON e.id = p.employee_id
+        LEFT JOIN departments d   ON e.department_id = d.id
+        LEFT JOIN positions pos   ON e.position_id   = pos.id
+        LEFT JOIN employee_salary_structure es ON es.employee_id = e.id AND es.is_active = 1
+
+        WHERE p.id = :pid
+        LIMIT 1
+    ";
+
+    $stmt = $this->db->prepare($sql);
+    $stmt->execute([':pid' => $payroll_id]);
+    $p = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$p) {
+        return null;
+    }
+
+    /* -------------------------------------------------------
+       2. Load salary structure allowances + benefits + currency
+    ------------------------------------------------------- */
+    $structure_id = $p['structure_id'];
+
+    // Load structure
+    $s = $this->db->prepare("SELECT currency FROM salary_structures WHERE id = :sid LIMIT 1");
+    $s->execute([':sid' => $structure_id]);
+    $structure = $s->fetch(PDO::FETCH_ASSOC);
+
+    $currency = $structure['currency'] ?? 'KES'; // fallback
+
+    // Allowances
+    $al = $this->db->prepare("
+        SELECT id, name, amount, taxable 
+        FROM salary_structure_allowances 
+        WHERE structure_id = :sid
+    ");
+    $al->execute([':sid' => $structure_id]);
+    $allowances = $al->fetchAll(PDO::FETCH_ASSOC);
+
+    // Benefits
+    $bt = $this->db->prepare("
+        SELECT id, name, amount, benefit_type, taxable 
+        FROM salary_structure_benefits 
+        WHERE structure_id = :sid
+    ");
+    $bt->execute([':sid' => $structure_id]);
+    $benefits = $bt->fetchAll(PDO::FETCH_ASSOC);
+
+    /* -------------------------------------------------------
+       3. Build unified payslip object (matches your React)
+    ------------------------------------------------------- */
+    $fullName = trim($p['first_name'] . ' ' . $p['last_name']);
+
+    return [
+        'id'                => (int)$p['id'],
+        'month'             => (int)$p['period_month'],
+        'year'              => (int)$p['period_year'],
+
+        'employee_name'     => $fullName,
+        'employee_no'       => $p['employee_no'],
+        'department_name'   => $p['department_name'],
+        'position_name'     => $p['position_name'],
+        'status'            => $p['status'],
+
+        'currency'          => $currency,
+
+        'basic_salary'      => (float)$p['basic_salary'],
+        'gross_pay'         => (float)$p['gross_pay'],
+        'total_deductions'  => (float)$p['total_deductions'],
+        'net_pay'           => (float)$p['net_pay'],
+
+        'overtime_hours'    => (float)$p['overtime_hours'],
+        'absence_deduction' => (float)$p['absence_deduction'],
+
+        'allowances'        => $allowances,
+        'benefits'          => $benefits
+    ];
+}
+
+
     /**
      * approve payroll
      */

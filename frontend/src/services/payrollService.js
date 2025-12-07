@@ -197,6 +197,10 @@ class PayrollService {
       throw error;
     }
   }
+
+  getPayrollById(id) {
+    return api.get(`/payroll.php?action=payslip_by_id&id=${id}`);
+  }
 }
 
 export default new PayrollService();
