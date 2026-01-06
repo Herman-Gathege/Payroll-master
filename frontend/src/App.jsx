@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useAuth } from "./contexts/AuthContext";
+
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import OrganizationSignup from "./pages/OrganizationSignup";
@@ -22,67 +23,58 @@ import EmployeePortal from "./pages/EmployeePortal";
 import Security from "./pages/Security";
 import DepartmentsPage from "./pages/DepartmentsPage";
 import EditEmployee from "./pages/EditEmployee";
+
 import SalaryStructuresList from "./pages/SalaryStructures/SalaryStructuresList";
 import SalaryStructureCreate from "./pages/SalaryStructures/SalaryStructureCreate";
 import SalaryStructureEdit from "./pages/SalaryStructures/SalaryStructureEdit";
+
 import EmployeeSalaryAssignment from "./pages/employee/EmployeeSalaryAssignment";
 import MySalaryStructure from "./pages/employee/MySalaryStructure";
 import PayslipView from "./pages/PayslipView";
 
-// Employer route protection
+/* ✅ BULK UPLOAD PAGE */
+import BulkEmployeeUploadPage from "./pages/BulkEmployeeUploadPage";
+
+/* ================= EMPLOYER ROUTE ================= */
+
 function EmployerRoute({ children }) {
   const { user, userType, loading } = useAuth();
 
-  console.log("EmployerRoute check:", { user: !!user, userType, loading });
+  if (loading) return <div>Loading...</div>;
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  return user && userType === "employer" ? (
-    children
-  ) : (
-    <Navigate to="/login" replace />
-  );
+  return user && userType === "employer"
+    ? children
+    : <Navigate to="/login" replace />;
 }
 
-// Employee route protection
+/* ================= EMPLOYEE ROUTE ================= */
+
 function EmployeeRoute({ children }) {
   const { user, userType, loading } = useAuth();
 
-  console.log("EmployeeRoute check:", { user: !!user, userType, loading });
+  if (loading) return <div>Loading...</div>;
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  return user && userType === "employee" ? (
-    children
-  ) : (
-    <Navigate to="/login" replace />
-  );
+  return user && userType === "employee"
+    ? children
+    : <Navigate to="/login" replace />;
 }
+
+/* ================= APP ================= */
 
 function App() {
   return (
     <>
       <Routes>
-        {/* Unified Login Route */}
+        {/* Public */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<OrganizationSignup />} />
         <Route path="/" element={<Navigate to="/login" />} />
 
-        {/* Legacy routes for backward compatibility */}
-        <Route
-          path="/employer/login"
-          element={<Navigate to="/login" replace />}
-        />
-        <Route
-          path="/employee/login"
-          element={<Navigate to="/login" replace />}
-        />
+        {/* Backward compatibility */}
+        <Route path="/employer/login" element={<Navigate to="/login" replace />} />
+        <Route path="/employee/login" element={<Navigate to="/login" replace />} />
 
-        {/* Employer Portal Routes */}
+        {/* ================= EMPLOYER PORTAL ================= */}
         <Route
           path="/employer/*"
           element={
@@ -91,44 +83,42 @@ function App() {
             </EmployerRoute>
           }
         >
-          <Route path="departments" element={<DepartmentsPage />} />
           <Route path="dashboard" element={<Dashboard />} />
+          <Route path="departments" element={<DepartmentsPage />} />
+
           <Route path="employees" element={<Employees />} />
           <Route path="employees/new" element={<AddEmployee />} />
+
+          {/* ✅ BULK EMPLOYEE UPLOAD ROUTE */}
+          <Route
+            path="employees/bulk-upload"
+            element={<BulkEmployeeUploadPage />}
+          />
+
           <Route path="employees/:id/edit" element={<EditEmployee />} />
           <Route path="employees/:id" element={<EmployeeDetail />} />
-          <Route path="payroll/:payrollId" element={<PayslipView />} />
+          <Route path="employees/:id/salary-structure" element={<EmployeeSalaryAssignment />} />
 
+          <Route path="payroll" element={<Payroll />} />
+          <Route path="payroll/:payrollId" element={<PayslipView />} />
 
           <Route path="recruitment" element={<Recruitment />} />
           <Route path="leave" element={<Leave />} />
           <Route path="attendance" element={<Attendance />} />
-          <Route path="payroll" element={<Payroll />} />
           <Route path="performance" element={<Performance />} />
           <Route path="training" element={<Training />} />
           <Route path="reports" element={<Reports />} />
           <Route path="settings" element={<Settings />} />
           <Route path="security" element={<Security />} />
 
-          {/* FIXED ROUTES */}
           <Route path="salary-structures" element={<SalaryStructuresList />} />
-          <Route
-            path="salary-structures/create"
-            element={<SalaryStructureCreate />}
-          />
-          <Route
-            path="salary-structures/:id/edit"
-            element={<SalaryStructureEdit />}
-          />
-          <Route
-            path="employees/:id/salary-structure"
-            element={<EmployeeSalaryAssignment />}
-          />
+          <Route path="salary-structures/create" element={<SalaryStructureCreate />} />
+          <Route path="salary-structures/:id/edit" element={<SalaryStructureEdit />} />
 
           <Route index element={<Navigate to="dashboard" />} />
         </Route>
 
-        {/* Employee Portal Routes */}
+        {/* ================= EMPLOYEE PORTAL ================= */}
         <Route
           path="/employee/portal"
           element={
@@ -137,6 +127,7 @@ function App() {
             </EmployeeRoute>
           }
         />
+
         <Route
           path="/employee/change-password"
           element={
@@ -155,6 +146,7 @@ function App() {
           }
         />
       </Routes>
+
       <ToastContainer position="top-right" autoClose={3000} />
     </>
   );
