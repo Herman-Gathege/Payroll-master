@@ -1,6 +1,6 @@
 <?php
 /**
- * EMPLOYEE BULK UPLOAD API — SKIP EXISTING & VALIDATE FK
+ * EMPLOYEE BULK UPLOAD API — SKIP EXISTING, VALIDATE FK & CREATE USERS
  * ---------------------------------------
  * Modes:
  *  - preview : Parse + validate CSV, no DB writes
@@ -114,11 +114,11 @@ if (!empty($missingHeaders)) {
 $mode = $_POST['mode'] ?? 'preview';
 
 // =========================================================
-// STEP 7 — VALIDATION FUNCTION (SKIP EXISTING, VALIDATE FKs)
+// STEP 7 — VALIDATION FUNCTION
 function validateEmployeeRow(array $row, int $orgId, PDO $db, array $csvEmployeeNos): array {
     $errors = [];
 
-    // Basic field checks
+    // Basic fields
     foreach (['employee_no','first_name','last_name','work_email'] as $field) {
         if (empty($row[$field])) $errors[] = "$field missing";
     }
@@ -140,22 +140,18 @@ function validateEmployeeRow(array $row, int $orgId, PDO $db, array $csvEmployee
         $errors[] = 'duplicate employee_no in CSV';
     }
 
-    // Skip existing employees
-    $stmt = $db->prepare("
-        SELECT id FROM employees WHERE employee_no = :emp AND organization_id = :org LIMIT 1
-    ");
+    // Existing employee
+    $stmt = $db->prepare("SELECT id FROM employees WHERE employee_no=:emp AND organization_id=:org LIMIT 1");
     $stmt->execute([':emp'=>$row['employee_no'], ':org'=>$orgId]);
-    if ($stmt->fetch()) {
-        $errors[] = 'employee_no already exists';
-    }
+    if ($stmt->fetch()) $errors[] = 'employee_no already exists';
 
-    // Validate department exists
-    $stmt = $db->prepare("SELECT id FROM departments WHERE id = :id AND organization_id = :org");
+    // Department FK
+    $stmt = $db->prepare("SELECT id FROM departments WHERE id=:id AND organization_id=:org");
     $stmt->execute([':id'=>$row['department_id'], ':org'=>$orgId]);
     if (!$stmt->fetch()) $errors[] = 'invalid department_id';
 
-    // Validate position exists
-    $stmt = $db->prepare("SELECT id FROM positions WHERE id = :id");
+    // Position FK
+    $stmt = $db->prepare("SELECT id FROM positions WHERE id=:id");
     $stmt->execute([':id'=>$row['position_id']]);
     if (!$stmt->fetch()) $errors[] = 'invalid position_id';
 
@@ -165,18 +161,14 @@ function validateEmployeeRow(array $row, int $orgId, PDO $db, array $csvEmployee
 // =========================================================
 // STEP 8 — PREVIEW MODE
 if ($mode === 'preview') {
-    $slice = array_slice($rows, 0, 10);
+    $slice = array_slice($rows,0,10);
     $preview = array_map(function($row,$i){
-        $row['row'] = $i + 2;
+        $row['row'] = $i+2;
         $row['errors'] = [];
         return $row;
     }, $slice, range(0,count($slice)-1));
 
-    echo json_encode([
-        'success'=>true,
-        'preview'=>$preview,
-        'total_rows'=>count($rows)
-    ]);
+    echo json_encode(['success'=>true,'preview'=>$preview,'total_rows'=>count($rows)]);
     exit();
 }
 
@@ -205,14 +197,12 @@ try {
     foreach ($rows as $index => $row) {
         $errors = validateEmployeeRow($row, $organization_id, $db, $csvEmployeeNos);
 
-        // Skip row if existing employee or invalid FK
         $skipRow = false;
         foreach ($errors as $err) {
-            if (in_array($err, ['employee_no already exists','invalid department_id','invalid position_id'])) {
+            if (in_array($err,['employee_no already exists','invalid department_id','invalid position_id'])) {
                 $skipRow = true;
             }
         }
-
         if ($skipRow) {
             $failed[] = ['row'=>$index+2,'employee_no'=>$row['employee_no'],'errors'=>$errors];
             continue;
@@ -222,7 +212,7 @@ try {
         $deptId = (int)$row['department_id'];
         $posId  = (int)$row['position_id'];
 
-        // Insert
+        // Insert employee
         $stmt->execute([
             ':org'=>$organization_id,
             ':emp'=>$row['employee_no'],
@@ -239,6 +229,22 @@ try {
         ]);
 
         $success[] = $row['employee_no'];
+
+        // =================================================
+        // Create login account for the new employee
+        $employeeId = $db->lastInsertId();
+        $defaultPassword = 'Welcome@2025'; // default password
+        $passwordHash = password_hash($defaultPassword, PASSWORD_DEFAULT);
+
+        $stmtUser = $db->prepare("
+            INSERT INTO employee_users (employee_id, username, password_hash)
+            VALUES (:empId, :username, :password)
+        ");
+        $stmtUser->execute([
+            ':empId'=>$employeeId,
+            ':username'=>$row['work_email'],
+            ':password'=>$passwordHash
+        ]);
     }
 
     $db->commit();
@@ -254,10 +260,6 @@ try {
 // STEP 10 — FINAL RESPONSE
 echo json_encode([
     'success'=>true,
-    'summary'=>[
-        'total'=>count($rows),
-        'inserted'=>count($success),
-        'failed'=>count($failed)
-    ],
+    'summary'=>['total'=>count($rows),'inserted'=>count($success),'failed'=>count($failed)],
     'failed_rows'=>$failed
 ]);
