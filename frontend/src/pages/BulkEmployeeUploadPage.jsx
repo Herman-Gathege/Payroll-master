@@ -1,17 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
-  Box, Card, CardContent, Typography, Button,
-  Table, TableHead, TableRow, TableCell, TableBody,
-  Chip, CircularProgress, Dialog, DialogTitle,
-  DialogContent, DialogActions
-} from '@mui/material';
-import employeeService from '../services/employeeService';
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+} from "@mui/material";
+import employeeService from "../services/employeeService";
 
 export default function BulkEmployeeUploadPage() {
   const [file, setFile] = useState(null);
   const [previewData, setPreviewData] = useState(null);
   const [uploadResult, setUploadResult] = useState(null);
-  const [step, setStep] = useState('upload'); // upload | preview | uploading | result
+  const [step, setStep] = useState("upload"); // upload | preview | uploading | result
   const [loading, setLoading] = useState(false);
 
   /* ================= FILE HANDLING ================= */
@@ -19,19 +31,19 @@ export default function BulkEmployeeUploadPage() {
     const selected = e.target.files[0];
     if (!selected) return;
 
-    if (!selected.name.endsWith('.csv')) {
-      alert('Only CSV files are allowed');
+    if (!selected.name.endsWith(".csv")) {
+      alert("Only CSV files are allowed");
       return;
     }
 
     if (selected.size > 2 * 1024 * 1024) {
-      alert('Maximum file size is 2MB');
+      alert("Maximum file size is 2MB");
       return;
     }
 
     setFile(selected);
     setPreviewData(null);
-    setStep('upload');
+    setStep("upload");
   };
 
   /* ================= PREVIEW ================= */
@@ -41,10 +53,11 @@ export default function BulkEmployeeUploadPage() {
 
     try {
       const res = await employeeService.previewBulkUpload(file);
+      console.log("Preview data:", res);
       setPreviewData(res);
-      setStep('preview');
+      setStep("preview");
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to preview CSV');
+      alert(err.response?.data?.message || "Failed to preview CSV");
     } finally {
       setLoading(false);
     }
@@ -55,17 +68,16 @@ export default function BulkEmployeeUploadPage() {
     if (!file) return;
 
     try {
-      setStep('uploading');
+      setStep("uploading");
 
       const result = await employeeService.bulkUploadEmployees(file);
 
       setUploadResult(result);
-      setStep('result');
-
+      setStep("result");
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || 'Upload failed');
-      setStep('preview');
+      alert(err.response?.data?.message || "Upload failed");
+      setStep("preview");
     }
   };
 
@@ -76,7 +88,7 @@ export default function BulkEmployeeUploadPage() {
         Bulk Employee Upload
       </Typography>
 
-      {step === 'upload' && (
+      {step === "upload" && (
         <UploadCSVCard
           file={file}
           onFileChange={handleFileChange}
@@ -85,7 +97,7 @@ export default function BulkEmployeeUploadPage() {
         />
       )}
 
-      {step === 'preview' && previewData && (
+      {step === "preview" && previewData && (
         <>
           <CSVPreviewTable previewData={previewData} />
           <ValidationSummary
@@ -96,18 +108,18 @@ export default function BulkEmployeeUploadPage() {
         </>
       )}
 
-      {step === 'uploading' && (
-        <Box sx={{ textAlign: 'center', mt: 5 }}>
+      {step === "uploading" && (
+        <Box sx={{ textAlign: "center", mt: 5 }}>
           <CircularProgress />
           <Typography mt={2}>Uploading employees…</Typography>
         </Box>
       )}
 
-      {step === 'result' && uploadResult && (
+      {step === "result" && uploadResult && (
         <UploadResultDialog
           uploadResult={uploadResult}
           onClose={() => {
-            setStep('upload');
+            setStep("upload");
             setFile(null);
             setPreviewData(null);
             setUploadResult(null);
@@ -150,53 +162,59 @@ function UploadCSVCard({ file, onFileChange, onPreview, loading }) {
 }
 
 function CSVPreviewTable({ previewData }) {
+  const rows = previewData?.preview || []; // <- safe fallback
+
   return (
     <Card sx={{ mb: 2 }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
           Preview (First 10 Rows)
         </Typography>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Row #</TableCell>
-              <TableCell>Employee No</TableCell>
-              <TableCell>Name</TableCell>
-              <TableCell>Email</TableCell>
-              <TableCell>Errors</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {previewData.preview.map((row) => (
-              <TableRow
-                key={row.row}
-                sx={{
-                  bgcolor: row.errors.length
-                    ? 'rgba(255,0,0,0.08)'
-                    : 'inherit'
-                }}
-              >
-                <TableCell>{row.row}</TableCell>
-                <TableCell>{row.data.employee_no}</TableCell>
-                <TableCell>
-                  {row.data.first_name} {row.data.last_name}
-                </TableCell>
-                <TableCell>{row.data.work_email}</TableCell>
-                <TableCell>
-                  {row.errors.map((err, i) => (
-                    <Chip
-                      key={i}
-                      label={err}
-                      size="small"
-                      color="error"
-                      sx={{ mr: 0.5, mb: 0.5 }}
-                    />
-                  ))}
-                </TableCell>
+        {rows.length === 0 ? (
+          <Typography>No preview available.</Typography>
+        ) : (
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Row #</TableCell>
+                <TableCell>Employee No</TableCell>
+                <TableCell>Name</TableCell>
+                <TableCell>Email</TableCell>
+                <TableCell>Errors</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHead>
+            <TableBody>
+              {rows.map((row) => (
+                <TableRow
+                  key={row.row}
+                  sx={{
+                    bgcolor: row.errors?.length
+                      ? "rgba(255,0,0,0.08)"
+                      : "inherit",
+                  }}
+                >
+                  <TableCell>{row.row}</TableCell>
+                  <TableCell>{row.data?.employee_no}</TableCell>
+                  <TableCell>
+                    {row.data?.first_name} {row.data?.last_name}
+                  </TableCell>
+                  <TableCell>{row.data?.work_email}</TableCell>
+                  <TableCell>
+                    {row.errors?.map((err, i) => (
+                      <Chip
+                        key={i}
+                        label={err}
+                        size="small"
+                        color="error"
+                        sx={{ mr: 0.5, mb: 0.5 }}
+                      />
+                    ))}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </CardContent>
     </Card>
   );
