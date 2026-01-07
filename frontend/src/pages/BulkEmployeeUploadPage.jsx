@@ -1,3 +1,5 @@
+// frontend/src/pages/BulkEmployeeUploadPage.jsx
+
 import React, { useState } from "react";
 import {
   Box,
@@ -43,6 +45,7 @@ export default function BulkEmployeeUploadPage() {
 
     setFile(selected);
     setPreviewData(null);
+    setUploadResult(null);
     setStep("upload");
   };
 
@@ -53,11 +56,15 @@ export default function BulkEmployeeUploadPage() {
 
     try {
       const res = await employeeService.previewBulkUpload(file);
-      console.log("Preview data:", res);
+
+      if (!res || res.success !== true) {
+        throw new Error(res?.message || "Preview failed");
+      }
+
       setPreviewData(res);
       setStep("preview");
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to preview CSV");
+      alert(err.response?.data?.message || err.message);
     } finally {
       setLoading(false);
     }
@@ -72,11 +79,14 @@ export default function BulkEmployeeUploadPage() {
 
       const result = await employeeService.bulkUploadEmployees(file);
 
+      if (!result || result.success !== true) {
+        throw new Error(result?.message || "Upload failed");
+      }
+
       setUploadResult(result);
       setStep("result");
     } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.message || "Upload failed");
+      alert(err.response?.data?.message || err.message);
       setStep("preview");
     }
   };
@@ -119,10 +129,10 @@ export default function BulkEmployeeUploadPage() {
         <UploadResultDialog
           uploadResult={uploadResult}
           onClose={() => {
-            setStep("upload");
             setFile(null);
             setPreviewData(null);
             setUploadResult(null);
+            setStep("upload");
           }}
         />
       )}
@@ -137,6 +147,7 @@ function UploadCSVCard({ file, onFileChange, onPreview, loading }) {
     <Card sx={{ mb: 3 }}>
       <CardContent>
         <Typography variant="h6">Select CSV File</Typography>
+
         <input
           type="file"
           accept=".csv"
@@ -144,6 +155,7 @@ function UploadCSVCard({ file, onFileChange, onPreview, loading }) {
           disabled={!!file}
           style={{ marginTop: 10 }}
         />
+
         <Box sx={{ mt: 2 }}>
           <Button
             variant="contained"
@@ -153,6 +165,7 @@ function UploadCSVCard({ file, onFileChange, onPreview, loading }) {
             Preview CSV
           </Button>
         </Box>
+
         <Typography variant="body2" sx={{ mt: 1 }} color="text.secondary">
           CSV headers must match required employee fields.
         </Typography>
@@ -162,7 +175,7 @@ function UploadCSVCard({ file, onFileChange, onPreview, loading }) {
 }
 
 function CSVPreviewTable({ previewData }) {
-  const rows = previewData?.preview || []; // <- safe fallback
+  const rows = previewData?.preview || [];
 
   return (
     <Card sx={{ mb: 2 }}>
@@ -170,6 +183,7 @@ function CSVPreviewTable({ previewData }) {
         <Typography variant="h6" gutterBottom>
           Preview (First 10 Rows)
         </Typography>
+
         {rows.length === 0 ? (
           <Typography>No preview available.</Typography>
         ) : (
@@ -183,6 +197,7 @@ function CSVPreviewTable({ previewData }) {
                 <TableCell>Errors</TableCell>
               </TableRow>
             </TableHead>
+
             <TableBody>
               {rows.map((row) => (
                 <TableRow
@@ -221,8 +236,8 @@ function CSVPreviewTable({ previewData }) {
 }
 
 function ValidationSummary({ previewData, onConfirm, loading }) {
-  const total = previewData.total_rows;
-  const failed = previewData.rows_with_errors || 0;
+  const total = previewData?.total_rows || 0;
+  const failed = previewData?.rows_with_errors || 0;
   const valid = total - failed;
 
   return (
@@ -231,6 +246,7 @@ function ValidationSummary({ previewData, onConfirm, loading }) {
         <Typography>Total rows: {total}</Typography>
         <Typography>Rows with errors: {failed}</Typography>
         <Typography>Rows ready for upload: {valid}</Typography>
+
         <Box sx={{ mt: 2 }}>
           <Button
             variant="contained"
@@ -246,17 +262,29 @@ function ValidationSummary({ previewData, onConfirm, loading }) {
 }
 
 function UploadResultDialog({ uploadResult, onClose }) {
+  const summary = uploadResult?.summary;
+
   return (
     <Dialog open fullWidth maxWidth="md">
       <DialogTitle>Upload Result</DialogTitle>
-      <DialogContent>
-        <Typography>Total Rows: {uploadResult.summary.total}</Typography>
-        <Typography>Inserted: {uploadResult.summary.inserted}</Typography>
-        <Typography>Failed: {uploadResult.summary.failed}</Typography>
 
-        {uploadResult.failed_rows.length > 0 && (
+      <DialogContent>
+        {!summary ? (
+          <Typography color="error">
+            Upload completed, but no summary was returned from the server.
+          </Typography>
+        ) : (
+          <>
+            <Typography>Total Rows: {summary.total}</Typography>
+            <Typography>Inserted: {summary.inserted}</Typography>
+            <Typography>Failed: {summary.failed}</Typography>
+          </>
+        )}
+
+        {uploadResult?.failed_rows?.length > 0 && (
           <Box sx={{ mt: 2 }}>
             <Typography variant="subtitle1">Failed Rows</Typography>
+
             <Table size="small">
               <TableBody>
                 {uploadResult.failed_rows.map((row) => (
@@ -280,6 +308,7 @@ function UploadResultDialog({ uploadResult, onClose }) {
           </Box>
         )}
       </DialogContent>
+
       <DialogActions>
         <Button onClick={onClose} variant="contained">
           Close

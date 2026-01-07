@@ -18,7 +18,13 @@ import {
   IconButton,
   Chip,
 } from "@mui/material";
-import { Add, Edit, Visibility, Search, UploadFile } from "@mui/icons-material";
+import {
+  Add,
+  Edit,
+  Visibility,
+  Search,
+  UploadFile,
+} from "@mui/icons-material";
 import employeeService from "../services/employeeService";
 
 export default function Employees() {
@@ -62,14 +68,13 @@ export default function Employees() {
           Employees
         </Typography>
 
-        <Box>
-          {/* ✅ BULK UPLOAD BUTTON */}
+        <Box display="flex" gap={1}>
+          {/* BULK UPLOAD */}
           <Button
             variant="outlined"
             startIcon={<UploadFile />}
             onClick={() => navigate("/employer/employees/bulk-upload")}
             sx={{
-              mr: 1,
               borderRadius: "6px",
               padding: "6px 16px",
               fontSize: "13px",
@@ -80,7 +85,7 @@ export default function Employees() {
             Bulk Upload
           </Button>
 
-          {/* ADD EMPLOYEE BUTTON */}
+          {/* ADD EMPLOYEE */}
           <Button
             variant="contained"
             startIcon={<Add />}
@@ -92,9 +97,7 @@ export default function Employees() {
               fontSize: "13px",
               textTransform: "none",
               fontWeight: 500,
-              "&:hover": {
-                bgcolor: "#1565c0",
-              },
+              "&:hover": { bgcolor: "#1565c0" },
             }}
           >
             Add Employee
@@ -136,6 +139,12 @@ export default function Employees() {
               <TableRow>
                 <TableCell colSpan={8} align="center">
                   Loading...
+                </TableCell>
+              </TableRow>
+            ) : error ? (
+              <TableRow>
+                <TableCell colSpan={8} align="center" color="error">
+                  Failed to load employees
                 </TableCell>
               </TableRow>
             ) : filteredEmployees.length === 0 ? (
