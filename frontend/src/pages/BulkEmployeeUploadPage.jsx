@@ -162,7 +162,7 @@ function UploadCSVCard({ file, onFileChange, onPreview, loading }) {
 }
 
 function CSVPreviewTable({ previewData }) {
-  const rows = previewData?.preview || []; // <- safe fallback
+  const rows = previewData?.preview || [];
 
   return (
     <Card sx={{ mb: 2 }}>
@@ -184,21 +184,21 @@ function CSVPreviewTable({ previewData }) {
               </TableRow>
             </TableHead>
             <TableBody>
-              {rows.map((row) => (
+              {rows.map((row, index) => (
                 <TableRow
-                  key={row.row}
+                  key={row.employee_no || index} // use employee_no if unique
                   sx={{
                     bgcolor: row.errors?.length
                       ? "rgba(255,0,0,0.08)"
                       : "inherit",
                   }}
                 >
-                  <TableCell>{row.row}</TableCell>
-                  <TableCell>{row.data?.employee_no}</TableCell>
+                  <TableCell>{index + 1}</TableCell>
+                  <TableCell>{row.employee_no}</TableCell>
                   <TableCell>
-                    {row.data?.first_name} {row.data?.last_name}
+                    {row.first_name} {row.last_name}
                   </TableCell>
-                  <TableCell>{row.data?.work_email}</TableCell>
+                  <TableCell>{row.work_email}</TableCell>
                   <TableCell>
                     {row.errors?.map((err, i) => (
                       <Chip

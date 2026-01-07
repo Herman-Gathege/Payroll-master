@@ -48,13 +48,20 @@ class EmailService {
         try {
             // SMTP Configuration
             $this->mailer->isSMTP();
-            $this->mailer->Host       = getenv('SMTP_HOST') ?: 'smtp.gmail.com'; // Change to your SMTP host
-            $this->mailer->SMTPAuth   = true;
-            $this->mailer->Username   = getenv('SMTP_USERNAME') ?: 'your-email@gmail.com'; // Change to your email
-            $this->mailer->Password   = getenv('SMTP_PASSWORD') ?: 'your-app-password'; // Change to your app password
-            $this->mailer->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-            $this->mailer->Port       = getenv('SMTP_PORT') ?: 587;
+            // $this->mailer->Host       = getenv('SMTP_HOST') ?: 'mail.lixnet.net'; // Change to your SMTP host
+            // $this->mailer->SMTPAuth   = true;
+            // $this->mailer->Username   = getenv('SMTP_USERNAME') ?: 'your-email@gmail.com'; // Change to your email
+            // $this->mailer->Password   = getenv('SMTP_PASSWORD') ?: 'your-app-password'; // Change to your app password
+            // $this->mailer->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+            // $this->mailer->Port       = getenv('SMTP_PORT') ?: 465;       
             
+            $this->mailer->Host       = 'mail.lixnet.net';
+            $this->mailer->SMTPAuth   = true;
+            $this->mailer->Username   = 'evolvepayroll@lixnet.net';
+            $this->mailer->Password   = '@EvolveLixnet2025';   // ← change only if password is different
+            $this->mailer->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;  // SSL
+            $this->mailer->Port       = 465;                          // forced
+
             // Sender info
             $this->from_email = getenv('FROM_EMAIL') ?: 'noreply@yourcompany.com';
             $this->from_name  = getenv('FROM_NAME') ?: 'Payroll System';

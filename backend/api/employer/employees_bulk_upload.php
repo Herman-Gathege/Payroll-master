@@ -6,33 +6,33 @@
  *  - preview : Parse + validate CSV, no DB writes
  *  - upload  : Validate + bulk insert (transaction-safe)
  */
-// ================== CORS PREFLIGHT FIX ==================
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    header("Access-Control-Allow-Origin: http://localhost:5173");
-    header("Access-Control-Allow-Methods: POST, OPTIONS");
-    header("Access-Control-Allow-Headers: Authorization, X-User, Content-Type");
+
+// =========================================================
+// STEP 0 — CORS FIX FOR FRONTEND (works with credentials)
+// =========================================================
+$frontendOrigin = $_SERVER['HTTP_ORIGIN'] ?? ''; // dynamically allow origin
+if ($frontendOrigin) {
+    header("Access-Control-Allow-Origin: $frontendOrigin");
     header("Access-Control-Allow-Credentials: true");
-    http_response_code(200);
-    exit;
+    header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+    header("Access-Control-Allow-Headers: Authorization, X-User, Content-Type, Accept");
+    header("Access-Control-Max-Age: 86400");
 }
 
-/* =========================================================
-   DEV ERROR VISIBILITY (REMOVE IN PROD)
-   ========================================================= */
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+// Handle preflight
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
 
-/* =========================================================
-   STEP 1 — BOOTSTRAP, SECURITY & AUTH
-   ========================================================= */
-
+// =========================================================
+// STEP 1 — BOOTSTRAP, SECURITY & AUTH
+// =========================================================
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../middleware/SecurityMiddleware.php';
 
 header('Content-Type: application/json');
 
-SecurityMiddleware::handleCORS();
 SecurityMiddleware::applySecurityHeaders();
 
 $db = (new Database())->getConnection();
@@ -44,13 +44,10 @@ if ($session['user_type'] !== 'employer') {
     exit();
 }
 
-/* =========================================================
-   STEP 2 — RESOLVE ORGANIZATION
-   ========================================================= */
-
-$stmt = $db->prepare(
-    "SELECT organization_id FROM employer_users WHERE id = :id"
-);
+// =========================================================
+// STEP 2 — RESOLVE ORGANIZATION
+// =========================================================
+$stmt = $db->prepare("SELECT organization_id FROM employer_users WHERE id = :id");
 $stmt->execute([':id' => $session['user_id']]);
 $org = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -62,10 +59,9 @@ if (!$org) {
 
 $organization_id = (int) $org['organization_id'];
 
-/* =========================================================
-   STEP 3 — ACCEPT CSV FILE
-   ========================================================= */
-
+// =========================================================
+// STEP 3 — ACCEPT CSV FILE
+// =========================================================
 if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'CSV file required']);
@@ -74,21 +70,18 @@ if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
 
 $filePath = $_FILES['file']['tmp_name'];
 
-/* =========================================================
-   STEP 4 — PARSE CSV (BOM + EXCEL SAFE)
-   ========================================================= */
-
+// =========================================================
+// STEP 4 — PARSE CSV (BOM + EXCEL SAFE)
+// =========================================================
 $rows = [];
 $headers = null;
 
 if (($handle = fopen($filePath, 'r')) !== false) {
     while (($data = fgetcsv($handle, 2000, ',')) !== false) {
-
         if (!$headers) {
             // Normalize headers: trim, lowercase, remove BOM
             $headers = array_map(function ($h) {
-                $h = preg_replace('/\xEF\xBB\xBF/', '', $h);
-                return strtolower(trim($h));
+                return strtolower(trim(preg_replace('/\xEF\xBB\xBF/', '', $h)));
             }, $data);
             continue;
         }
@@ -108,10 +101,9 @@ if (empty($rows)) {
     exit();
 }
 
-/* =========================================================
-   STEP 5 — CSV HEADER CONTRACT ENFORCEMENT
-   ========================================================= */
-
+// =========================================================
+// STEP 5 — CSV HEADER CONTRACT ENFORCEMENT
+// =========================================================
 $requiredHeaders = [
     'employee_no',
     'first_name',
@@ -127,7 +119,6 @@ $requiredHeaders = [
 ];
 
 $missingHeaders = array_diff($requiredHeaders, $headers);
-
 if (!empty($missingHeaders)) {
     echo json_encode([
         'success' => false,
@@ -137,28 +128,19 @@ if (!empty($missingHeaders)) {
     exit();
 }
 
-/* =========================================================
-   STEP 6 — MODE DETECTION
-   ========================================================= */
-
+// =========================================================
+// STEP 6 — MODE DETECTION
+// =========================================================
 $mode = $_POST['mode'] ?? 'preview';
 
-/* =========================================================
-   STEP 7 — ROW VALIDATION FUNCTION
-   ========================================================= */
-
-function validateEmployeeRow(
-    array $row,
-    int $orgId,
-    PDO $db,
-    array $csvEmployeeNos
-): array {
+// =========================================================
+// STEP 7 — ROW VALIDATION FUNCTION
+// =========================================================
+function validateEmployeeRow(array $row, int $orgId, PDO $db, array $csvEmployeeNos): array {
     $errors = [];
 
     foreach (['employee_no','first_name','last_name','work_email'] as $field) {
-        if (empty($row[$field])) {
-            $errors[] = "$field missing";
-        }
+        if (empty($row[$field])) $errors[] = "$field missing";
     }
 
     if (!empty($row['work_email']) &&
@@ -190,10 +172,7 @@ function validateEmployeeRow(
           AND organization_id = :org
         LIMIT 1
     ");
-    $stmt->execute([
-        ':emp' => $row['employee_no'],
-        ':org' => $orgId
-    ]);
+    $stmt->execute([':emp' => $row['employee_no'], ':org' => $orgId]);
 
     if ($stmt->fetch()) {
         $errors[] = 'employee_no already exists';
@@ -202,10 +181,9 @@ function validateEmployeeRow(
     return $errors;
 }
 
-/* =========================================================
-   STEP 8 — PREVIEW MODE (UNCHANGED)
-   ========================================================= */
-
+// =========================================================
+// STEP 8 — PREVIEW MODE
+// =========================================================
 if ($mode === 'preview') {
     echo json_encode([
         'success' => true,
@@ -215,22 +193,17 @@ if ($mode === 'preview') {
     exit();
 }
 
-/* =========================================================
-   STEP 9 — UPLOAD MODE (ATOMIC & SAFE)
-   ========================================================= */
-
+// =========================================================
+// STEP 9 — UPLOAD MODE (ATOMIC & SAFE)
+// =========================================================
 $csvEmployeeNos = array_column($rows, 'employee_no');
 $failed = [];
 
-/* --- Pre-validate ALL rows before DB write --- */
+// Pre-validate ALL rows
 foreach ($rows as $index => $row) {
     $errors = validateEmployeeRow($row, $organization_id, $db, $csvEmployeeNos);
-
     if (!empty($errors)) {
-        $failed[] = [
-            'row' => $index + 2,
-            'errors' => $errors
-        ];
+        $failed[] = ['row' => $index + 2, 'errors' => $errors];
     }
 }
 
@@ -243,10 +216,9 @@ if (!empty($failed)) {
     exit();
 }
 
-/* --- Transaction-safe insert --- */
+// Transaction-safe insert
 try {
     $db->beginTransaction();
-
     $success = [];
 
     $stmt = $db->prepare("
@@ -293,9 +265,7 @@ try {
     $db->commit();
 
 } catch (Throwable $e) {
-    if ($db->inTransaction()) {
-        $db->rollBack();
-    }
+    if ($db->inTransaction()) $db->rollBack();
 
     http_response_code(500);
     echo json_encode([
@@ -306,10 +276,9 @@ try {
     exit();
 }
 
-/* =========================================================
-   STEP 10 — FINAL RESPONSE
-   ========================================================= */
-
+// =========================================================
+// STEP 10 — FINAL RESPONSE
+// =========================================================
 echo json_encode([
     'success' => true,
     'summary' => [
