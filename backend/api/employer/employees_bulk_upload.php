@@ -8,9 +8,14 @@
  */
 
 // =========================================================
-// STEP 0 — CORS FIX FOR FRONTEND (works with credentials)
+// STEP 0 — ENABLE ERRORS (for development, remove in prod)
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 // =========================================================
-$frontendOrigin = $_SERVER['HTTP_ORIGIN'] ?? ''; // dynamically allow origin
+// STEP 1 — CORS FIX FOR FRONTEND
+$frontendOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
 if ($frontendOrigin) {
     header("Access-Control-Allow-Origin: $frontendOrigin");
     header("Access-Control-Allow-Credentials: true");
@@ -18,21 +23,17 @@ if ($frontendOrigin) {
     header("Access-Control-Allow-Headers: Authorization, X-User, Content-Type, Accept");
     header("Access-Control-Max-Age: 86400");
 }
-
-// Handle preflight
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
 
 // =========================================================
-// STEP 1 — BOOTSTRAP, SECURITY & AUTH
-// =========================================================
+// STEP 2 — BOOTSTRAP
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../middleware/SecurityMiddleware.php';
 
 header('Content-Type: application/json');
-
 SecurityMiddleware::applySecurityHeaders();
 
 $db = (new Database())->getConnection();
@@ -45,8 +46,7 @@ if ($session['user_type'] !== 'employer') {
 }
 
 // =========================================================
-// STEP 2 — RESOLVE ORGANIZATION
-// =========================================================
+// STEP 3 — GET ORGANIZATION
 $stmt = $db->prepare("SELECT organization_id FROM employer_users WHERE id = :id");
 $stmt->execute([':id' => $session['user_id']]);
 $org = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -57,11 +57,10 @@ if (!$org) {
     exit();
 }
 
-$organization_id = (int) $org['organization_id'];
+$organization_id = (int)$org['organization_id'];
 
 // =========================================================
-// STEP 3 — ACCEPT CSV FILE
-// =========================================================
+// STEP 4 — ACCEPT AND PARSE CSV
 if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'CSV file required']);
@@ -70,28 +69,25 @@ if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
 
 $filePath = $_FILES['file']['tmp_name'];
 
-// =========================================================
-// STEP 4 — PARSE CSV (BOM + EXCEL SAFE)
-// =========================================================
 $rows = [];
 $headers = null;
 
 if (($handle = fopen($filePath, 'r')) !== false) {
     while (($data = fgetcsv($handle, 2000, ',')) !== false) {
         if (!$headers) {
-            // Normalize headers: trim, lowercase, remove BOM
             $headers = array_map(function ($h) {
                 return strtolower(trim(preg_replace('/\xEF\xBB\xBF/', '', $h)));
             }, $data);
             continue;
         }
-
         if (count(array_filter($data)) === 0) continue;
 
-        $rows[] = array_combine(
-            $headers,
-            array_map('trim', $data)
-        );
+        $rowData = @array_combine($headers, array_map('trim', $data));
+        if ($rowData === false) {
+            echo json_encode(['success' => false, 'message' => 'CSV row/header mismatch']);
+            exit();
+        }
+        $rows[] = $rowData;
     }
     fclose($handle);
 }
@@ -102,22 +98,11 @@ if (empty($rows)) {
 }
 
 // =========================================================
-// STEP 5 — CSV HEADER CONTRACT ENFORCEMENT
-// =========================================================
+// STEP 5 — HEADER VALIDATION
 $requiredHeaders = [
-    'employee_no',
-    'first_name',
-    'last_name',
-    'work_email',
-    'phone',
-    'gender',
-    'date_of_birth',
-    'hire_date',
-    'department_id',
-    'position_id',
-    'basic_salary'
+    'employee_no','first_name','last_name','work_email','phone',
+    'gender','date_of_birth','hire_date','department_id','position_id','basic_salary'
 ];
-
 $missingHeaders = array_diff($requiredHeaders, $headers);
 if (!empty($missingHeaders)) {
     echo json_encode([
@@ -129,13 +114,11 @@ if (!empty($missingHeaders)) {
 }
 
 // =========================================================
-// STEP 6 — MODE DETECTION
-// =========================================================
+// STEP 6 — MODE
 $mode = $_POST['mode'] ?? 'preview';
 
 // =========================================================
 // STEP 7 — ROW VALIDATION FUNCTION
-// =========================================================
 function validateEmployeeRow(array $row, int $orgId, PDO $db, array $csvEmployeeNos): array {
     $errors = [];
 
@@ -143,8 +126,7 @@ function validateEmployeeRow(array $row, int $orgId, PDO $db, array $csvEmployee
         if (empty($row[$field])) $errors[] = "$field missing";
     }
 
-    if (!empty($row['work_email']) &&
-        !filter_var($row['work_email'], FILTER_VALIDATE_EMAIL)) {
+    if (!empty($row['work_email']) && !filter_var($row['work_email'], FILTER_VALIDATE_EMAIL)) {
         $errors[] = 'invalid email';
     }
 
@@ -157,23 +139,20 @@ function validateEmployeeRow(array $row, int $orgId, PDO $db, array $csvEmployee
     }
 
     foreach (['date_of_birth','hire_date'] as $dateField) {
-        if (!DateTime::createFromFormat('m-d-Y', $row[$dateField])) {
-            $errors[] = "invalid $dateField format";
-        }
+        $d = DateTime::createFromFormat('m-d-Y', $row[$dateField]);
+        if (!$d) $errors[] = "invalid $dateField format";
     }
 
     if (count(array_keys($csvEmployeeNos, $row['employee_no'])) > 1) {
         $errors[] = 'duplicate employee_no in CSV';
     }
 
+    // Check existing employee
     $stmt = $db->prepare("
         SELECT id FROM employees
-        WHERE employee_no = :emp
-          AND organization_id = :org
-        LIMIT 1
+        WHERE employee_no = :emp AND organization_id = :org LIMIT 1
     ");
     $stmt->execute([':emp' => $row['employee_no'], ':org' => $orgId]);
-
     if ($stmt->fetch()) {
         $errors[] = 'employee_no already exists';
     }
@@ -183,27 +162,33 @@ function validateEmployeeRow(array $row, int $orgId, PDO $db, array $csvEmployee
 
 // =========================================================
 // STEP 8 — PREVIEW MODE
-// =========================================================
 if ($mode === 'preview') {
+    $slice = array_slice($rows, 0, 10);
+    $preview = array_map(function($row, $i) {
+        $row['row'] = $i + 2;
+        $row['errors'] = [];
+        return $row;
+    }, $slice, range(0, count($slice)-1));
+
     echo json_encode([
         'success' => true,
-        'preview' => array_slice($rows, 0, 10),
+        'preview' => $preview,
         'total_rows' => count($rows)
     ]);
     exit();
 }
 
 // =========================================================
-// STEP 9 — UPLOAD MODE (ATOMIC & SAFE)
-// =========================================================
+// STEP 9 — UPLOAD MODE
 $csvEmployeeNos = array_column($rows, 'employee_no');
 $failed = [];
+$success = [];
 
-// Pre-validate ALL rows
+// Pre-validate rows
 foreach ($rows as $index => $row) {
     $errors = validateEmployeeRow($row, $organization_id, $db, $csvEmployeeNos);
     if (!empty($errors)) {
-        $failed[] = ['row' => $index + 2, 'errors' => $errors];
+        $failed[] = ['row' => $index + 2, 'employee_no' => $row['employee_no'], 'errors' => $errors];
     }
 }
 
@@ -216,25 +201,16 @@ if (!empty($failed)) {
     exit();
 }
 
-// Transaction-safe insert
+// =========================================================
+// STEP 10 — INSERT TRANSACTION
 try {
     $db->beginTransaction();
-    $success = [];
 
     $stmt = $db->prepare("
         INSERT INTO employees (
-            organization_id,
-            employee_no,
-            first_name,
-            last_name,
-            work_email,
-            phone,
-            gender,
-            date_of_birth,
-            hire_date,
-            department_id,
-            position_id,
-            basic_salary
+            organization_id, employee_no, first_name, last_name,
+            work_email, phone, gender, date_of_birth, hire_date,
+            department_id, position_id, basic_salary
         ) VALUES (
             :org,:emp,:fn,:ln,:email,:phone,:gender,
             STR_TO_DATE(:dob,'%m-%d-%Y'),
@@ -243,48 +219,51 @@ try {
         )
     ");
 
-    foreach ($rows as $row) {
-        $stmt->execute([
-            ':org'    => $organization_id,
-            ':emp'    => $row['employee_no'],
-            ':fn'     => $row['first_name'],
-            ':ln'     => $row['last_name'],
-            ':email'  => $row['work_email'],
-            ':phone'  => $row['phone'],
-            ':gender' => $row['gender'],
-            ':dob'    => $row['date_of_birth'],
-            ':hire'   => $row['hire_date'],
-            ':dept'   => $row['department_id'],
-            ':pos'    => $row['position_id'],
-            ':salary' => $row['basic_salary']
-        ]);
+    foreach ($rows as $index => $row) {
+        $deptId = (int)$row['department_id'];
+        $posId  = (int)$row['position_id'];
 
-        $success[] = $row['employee_no'];
+        try {
+            $stmt->execute([
+                ':org'    => $organization_id,
+                ':emp'    => $row['employee_no'],
+                ':fn'     => $row['first_name'],
+                ':ln'     => $row['last_name'],
+                ':email'  => $row['work_email'],
+                ':phone'  => $row['phone'],
+                ':gender' => $row['gender'],
+                ':dob'    => $row['date_of_birth'],
+                ':hire'   => $row['hire_date'],
+                ':dept'   => $deptId,
+                ':pos'    => $posId,
+                ':salary' => $row['basic_salary']
+            ]);
+            $success[] = $row['employee_no'];
+        } catch (PDOException $e) {
+            $failed[] = [
+                'row' => $index + 2,
+                'employee_no' => $row['employee_no'],
+                'errors' => [$e->getMessage()]
+            ];
+        }
     }
 
     $db->commit();
-
 } catch (Throwable $e) {
     if ($db->inTransaction()) $db->rollBack();
-
     http_response_code(500);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Bulk upload failed',
-        'error' => $e->getMessage()
-    ]);
+    echo json_encode(['success'=>false,'message'=>'Bulk upload failed','error'=>$e->getMessage()]);
     exit();
 }
 
 // =========================================================
-// STEP 10 — FINAL RESPONSE
-// =========================================================
+// STEP 11 — FINAL RESPONSE
 echo json_encode([
-    'success' => true,
+    'success' => empty($failed),
     'summary' => [
-        'total'    => count($rows),
+        'total' => count($rows),
         'inserted' => count($success),
-        'failed'   => 0
+        'failed' => count($failed)
     ],
-    'failed_rows' => []
+    'failed_rows' => $failed
 ]);

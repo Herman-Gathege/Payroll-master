@@ -18,6 +18,8 @@ import {
   DialogActions,
 } from "@mui/material";
 import employeeService from "../services/employeeService";
+import { useQueryClient } from "react-query";
+
 
 export default function BulkEmployeeUploadPage() {
   const [file, setFile] = useState(null);
@@ -25,6 +27,7 @@ export default function BulkEmployeeUploadPage() {
   const [uploadResult, setUploadResult] = useState(null);
   const [step, setStep] = useState("upload"); // upload | preview | uploading | result
   const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
 
   /* ================= FILE HANDLING ================= */
   const handleFileChange = (e) => {
@@ -64,22 +67,43 @@ export default function BulkEmployeeUploadPage() {
   };
 
   /* ================= UPLOAD ================= */
+  // const handleUpload = async () => {
+  //   if (!file) return;
+
+  //   try {
+  //     setStep("uploading");
+
+  //     const result = await employeeService.bulkUploadEmployees(file);
+
+  //     setUploadResult(result);
+  //     setStep("result");
+  //   } catch (err) {
+  //     console.error(err);
+  //     alert(err.response?.data?.message || "Upload failed");
+  //     setStep("preview");
+  //   }
+  // };
+
   const handleUpload = async () => {
-    if (!file) return;
+  if (!file) return;
 
-    try {
-      setStep("uploading");
+  try {
+    setStep("uploading");
 
-      const result = await employeeService.bulkUploadEmployees(file);
+    const result = await employeeService.bulkUploadEmployees(file);
 
-      setUploadResult(result);
-      setStep("result");
-    } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.message || "Upload failed");
-      setStep("preview");
-    }
-  };
+    setUploadResult(result);
+    setStep("result");
+
+    // REFRESH EMPLOYEE LIST
+    queryClient.invalidateQueries("employees"); // <-- refresh employees
+  } catch (err) {
+    console.error(err);
+    alert(err.response?.data?.message || "Upload failed");
+    setStep("preview");
+  }
+};
+
 
   /* ================= RENDER ================= */
   return (
@@ -221,8 +245,12 @@ function CSVPreviewTable({ previewData }) {
 }
 
 function ValidationSummary({ previewData, onConfirm, loading }) {
-  const total = previewData.total_rows;
-  const failed = previewData.rows_with_errors || 0;
+  const rows = previewData.preview || [];
+
+  const failed = rows.filter(
+    (row) => row.errors && row.errors.length > 0
+  ).length;
+  const total = rows.length;
   const valid = total - failed;
 
   return (
@@ -246,15 +274,19 @@ function ValidationSummary({ previewData, onConfirm, loading }) {
 }
 
 function UploadResultDialog({ uploadResult, onClose }) {
+  if (!uploadResult) return null; // safeguard
+
+  const summary = uploadResult.summary || { total: 0, inserted: 0, failed: 0 };
+
   return (
     <Dialog open fullWidth maxWidth="md">
       <DialogTitle>Upload Result</DialogTitle>
       <DialogContent>
-        <Typography>Total Rows: {uploadResult.summary.total}</Typography>
-        <Typography>Inserted: {uploadResult.summary.inserted}</Typography>
-        <Typography>Failed: {uploadResult.summary.failed}</Typography>
+        <Typography>Total Rows: {summary.total}</Typography>
+        <Typography>Inserted: {summary.inserted}</Typography>
+        <Typography>Failed: {summary.failed}</Typography>
 
-        {uploadResult.failed_rows.length > 0 && (
+        {uploadResult.failed_rows?.length > 0 && (
           <Box sx={{ mt: 2 }}>
             <Typography variant="subtitle1">Failed Rows</Typography>
             <Table size="small">

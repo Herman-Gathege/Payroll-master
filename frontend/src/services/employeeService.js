@@ -1,25 +1,24 @@
-import api from './api'
+import api from "./api";
 
 /**
  * Unified Employee Service
  * Correctly matches your actual backend routes.
  */
 
-const EMPLOYER_BASE = '/employer/employees.php';
-const ESS_PROFILE = '/employee/profile.php';
-const EMPLOYER_BULK_UPLOAD = '/employer/employees_bulk_upload.php';
+const EMPLOYER_BASE = "/employer/employees.php";
+const ESS_PROFILE = "/employee/profile.php";
+const EMPLOYER_BULK_UPLOAD = "/employer/employees_bulk_upload.php";
 
 export const employeeService = {
-
   // ---------------------------------------------------------
   // EMPLOYER — GET ALL EMPLOYEES
   // ---------------------------------------------------------
   getAllEmployees: async (params = {}) => {
     try {
       const response = await api.get(EMPLOYER_BASE, { params });
-      return response.data;   // { success, data, pagination }
+      return response.data; // { success, data, pagination }
     } catch (error) {
-      console.error('Error fetching employees:', error);
+      console.error("Error fetching employees:", error);
       throw error;
     }
   },
@@ -29,9 +28,9 @@ export const employeeService = {
   // ---------------------------------------------------------
   getEmployee: async (id = null) => {
     try {
-      const userType = localStorage.getItem('userType');
+      const userType = localStorage.getItem("userType");
 
-      if (userType === 'employee') {
+      if (userType === "employee") {
         const response = await api.get(ESS_PROFILE);
         return response.data;
       }
@@ -39,9 +38,8 @@ export const employeeService = {
       // employer → ?id=5
       const response = await api.get(EMPLOYER_BASE, { params: { id } });
       return response.data;
-
     } catch (error) {
-      console.error('Error fetching employee:', error);
+      console.error("Error fetching employee:", error);
       throw error;
     }
   },
@@ -54,7 +52,7 @@ export const employeeService = {
       const response = await api.get(ESS_PROFILE);
       return response.data;
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      console.error("Error fetching profile:", error);
       throw error;
     }
   },
@@ -67,7 +65,7 @@ export const employeeService = {
       const response = await api.post(EMPLOYER_BASE, employeeData);
       return response.data;
     } catch (error) {
-      console.error('Error creating employee:', error);
+      console.error("Error creating employee:", error);
       throw error;
     }
   },
@@ -77,14 +75,14 @@ export const employeeService = {
   // ---------------------------------------------------------
   updateEmployee: async (employeeData) => {
     try {
-      const userType = localStorage.getItem('userType');
+      const userType = localStorage.getItem("userType");
 
-      if (userType === 'employee') {
+      if (userType === "employee") {
         const allowed = {
           phone: employeeData.phone,
           personal_email: employeeData.personal_email,
           emergency_contact_name: employeeData.emergency_contact_name,
-          emergency_contact_phone: employeeData.emergency_contact_phone
+          emergency_contact_phone: employeeData.emergency_contact_phone,
         };
         const response = await api.put(ESS_PROFILE, allowed);
         return response.data;
@@ -93,9 +91,8 @@ export const employeeService = {
       // Employer updates via PUT body
       const response = await api.put(EMPLOYER_BASE, employeeData);
       return response.data;
-
     } catch (error) {
-      console.error('Error updating employee:', error);
+      console.error("Error updating employee:", error);
       throw error;
     }
   },
@@ -108,7 +105,7 @@ export const employeeService = {
       const response = await api.delete(`${EMPLOYER_BASE}?id=${id}`);
       return response.data;
     } catch (error) {
-      console.error('Error deleting employee:', error);
+      console.error("Error deleting employee:", error);
       throw error;
     }
   },
@@ -119,11 +116,11 @@ export const employeeService = {
   searchEmployees: async (query) => {
     try {
       const response = await api.get(EMPLOYER_BASE, {
-        params: { search: query }
+        params: { search: query },
       });
       return response.data;
     } catch (error) {
-      console.error('Error searching employees:', error);
+      console.error("Error searching employees:", error);
       throw error;
     }
   },
@@ -156,20 +153,16 @@ export const employeeService = {
   bulkUploadEmployees: async (file) => {
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append("file", file);
+      formData.append("mode", "upload"); // <-- add this!
 
-      const response = await api.post(
-        EMPLOYER_BULK_UPLOAD,
-        formData,
-        {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        }
-      );
+      const response = await api.post(EMPLOYER_BULK_UPLOAD, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
-      return response.data; // { success, preview, summary, failed_rows }
-
+      return response.data;
     } catch (error) {
-      console.error('Error bulk uploading employees:', error);
+      console.error("Error bulk uploading employees:", error);
       throw error;
     }
   },
@@ -180,23 +173,19 @@ export const employeeService = {
   previewBulkUpload: async (file) => {
     try {
       const formData = new FormData();
-      formData.append('file', file);
-      formData.append('mode', 'preview');
+      formData.append("file", file);
+      formData.append("mode", "preview");
 
-      const response = await api.post(
-        EMPLOYER_BULK_UPLOAD,
-        formData,
-        { headers: { 'Content-Type': 'multipart/form-data' } }
-      );
+      const response = await api.post(EMPLOYER_BULK_UPLOAD, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
       return response.data;
-
     } catch (error) {
-      console.error('Error previewing CSV:', error);
+      console.error("Error previewing CSV:", error);
       throw error;
     }
-  }
-
+  },
 };
 
 export default employeeService;
