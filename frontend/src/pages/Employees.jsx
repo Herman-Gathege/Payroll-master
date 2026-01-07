@@ -18,31 +18,24 @@ import {
   IconButton,
   Chip,
 } from "@mui/material";
-import { Add, Edit, Visibility, Search } from "@mui/icons-material";
+import { Add, Edit, Visibility, Search, UploadFile } from "@mui/icons-material";
 import employeeService from "../services/employeeService";
 
 export default function Employees() {
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
 
-  // ----------------------------------------------------
-  // Fetch employees from backend
-  // backend returns: { success, data: [...], pagination }
-  // ----------------------------------------------------
   const { data, isLoading, error } = useQuery(
     "employees",
     employeeService.getAllEmployees
   );
 
-  const employees = data?.data || []; // FIXED (backend uses data not records)
+  const employees = data?.data || [];
 
-  // ----------------------------------------------------
-  // Local filtering (optional)
-  // ----------------------------------------------------
   const filteredEmployees = employees.filter(
     (emp) =>
       emp.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.employee_no?.toLowerCase().includes(searchTerm.toLowerCase()) || // FIXED
+      emp.employee_no?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       emp.department_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -58,6 +51,7 @@ export default function Employees() {
 
   return (
     <Box>
+      {/* ================= HEADER ================= */}
       <Box
         display="flex"
         justifyContent="space-between"
@@ -68,26 +62,47 @@ export default function Employees() {
           Employees
         </Typography>
 
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => navigate("/employer/employees/new")}
-          sx={{
-            bgcolor: "#1976d2",
-            borderRadius: "6px",
-            padding: "6px 16px",
-            fontSize: "13px",
-            textTransform: "none",
-            fontWeight: 500,
-            "&:hover": {
-              bgcolor: "#1565c0",
-            },
-          }}
-        >
-          Add Employee
-        </Button>
+        <Box>
+          {/* ✅ BULK UPLOAD BUTTON */}
+          <Button
+            variant="outlined"
+            startIcon={<UploadFile />}
+            onClick={() => navigate("/employer/employees/bulk-upload")}
+            sx={{
+              mr: 1,
+              borderRadius: "6px",
+              padding: "6px 16px",
+              fontSize: "13px",
+              textTransform: "none",
+              fontWeight: 500,
+            }}
+          >
+            Bulk Upload
+          </Button>
+
+          {/* ADD EMPLOYEE BUTTON */}
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => navigate("/employer/employees/new")}
+            sx={{
+              bgcolor: "#1976d2",
+              borderRadius: "6px",
+              padding: "6px 16px",
+              fontSize: "13px",
+              textTransform: "none",
+              fontWeight: 500,
+              "&:hover": {
+                bgcolor: "#1565c0",
+              },
+            }}
+          >
+            Add Employee
+          </Button>
+        </Box>
       </Box>
 
+      {/* ================= SEARCH ================= */}
       <Paper sx={{ p: 2, mb: 2 }}>
         <TextField
           fullWidth
@@ -100,6 +115,7 @@ export default function Employees() {
         />
       </Paper>
 
+      {/* ================= TABLE ================= */}
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
@@ -131,11 +147,11 @@ export default function Employees() {
             ) : (
               filteredEmployees.map((employee) => (
                 <TableRow key={employee.id} hover>
-                  <TableCell>{employee.employee_no}</TableCell> {/* FIXED */}
+                  <TableCell>{employee.employee_no}</TableCell>
                   <TableCell>{employee.full_name}</TableCell>
                   <TableCell>{employee.department_name}</TableCell>
                   <TableCell>{employee.position_title}</TableCell>
-                  <TableCell>{employee.phone}</TableCell> {/* FIXED field */}
+                  <TableCell>{employee.phone}</TableCell>
                   <TableCell>{employee.work_email}</TableCell>
                   <TableCell>
                     <Chip

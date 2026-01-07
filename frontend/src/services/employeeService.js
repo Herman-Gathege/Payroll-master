@@ -1,5 +1,3 @@
-// frontend/src/services/employeeService.js
-
 import api from './api'
 
 /**
@@ -9,6 +7,7 @@ import api from './api'
 
 const EMPLOYER_BASE = '/employer/employees.php';
 const ESS_PROFILE = '/employee/profile.php';
+const EMPLOYER_BULK_UPLOAD = '/employer/employees_bulk_upload.php';
 
 export const employeeService = {
 
@@ -17,11 +16,11 @@ export const employeeService = {
   // ---------------------------------------------------------
   getAllEmployees: async (params = {}) => {
     try {
-      const response = await api.get(EMPLOYER_BASE, { params })
-      return response.data   // { success, data, pagination }
+      const response = await api.get(EMPLOYER_BASE, { params });
+      return response.data;   // { success, data, pagination }
     } catch (error) {
-      console.error('Error fetching employees:', error)
-      throw error
+      console.error('Error fetching employees:', error);
+      throw error;
     }
   },
 
@@ -30,20 +29,20 @@ export const employeeService = {
   // ---------------------------------------------------------
   getEmployee: async (id = null) => {
     try {
-      const userType = localStorage.getItem('userType')
+      const userType = localStorage.getItem('userType');
 
       if (userType === 'employee') {
-        const response = await api.get(ESS_PROFILE)
-        return response.data
+        const response = await api.get(ESS_PROFILE);
+        return response.data;
       }
 
       // employer → ?id=5
-      const response = await api.get(EMPLOYER_BASE, { params: { id } })
-      return response.data
+      const response = await api.get(EMPLOYER_BASE, { params: { id } });
+      return response.data;
 
     } catch (error) {
-      console.error('Error fetching employee:', error)
-      throw error
+      console.error('Error fetching employee:', error);
+      throw error;
     }
   },
 
@@ -52,11 +51,11 @@ export const employeeService = {
   // ---------------------------------------------------------
   getMyProfile: async () => {
     try {
-      const response = await api.get(ESS_PROFILE)
-      return response.data
+      const response = await api.get(ESS_PROFILE);
+      return response.data;
     } catch (error) {
-      console.error('Error fetching profile:', error)
-      throw error
+      console.error('Error fetching profile:', error);
+      throw error;
     }
   },
 
@@ -65,11 +64,11 @@ export const employeeService = {
   // ---------------------------------------------------------
   createEmployee: async (employeeData) => {
     try {
-      const response = await api.post(EMPLOYER_BASE, employeeData)
-      return response.data
+      const response = await api.post(EMPLOYER_BASE, employeeData);
+      return response.data;
     } catch (error) {
-      console.error('Error creating employee:', error)
-      throw error
+      console.error('Error creating employee:', error);
+      throw error;
     }
   },
 
@@ -78,7 +77,7 @@ export const employeeService = {
   // ---------------------------------------------------------
   updateEmployee: async (employeeData) => {
     try {
-      const userType = localStorage.getItem('userType')
+      const userType = localStorage.getItem('userType');
 
       if (userType === 'employee') {
         const allowed = {
@@ -86,18 +85,18 @@ export const employeeService = {
           personal_email: employeeData.personal_email,
           emergency_contact_name: employeeData.emergency_contact_name,
           emergency_contact_phone: employeeData.emergency_contact_phone
-        }
-        const response = await api.put(ESS_PROFILE, allowed)
-        return response.data
+        };
+        const response = await api.put(ESS_PROFILE, allowed);
+        return response.data;
       }
 
       // Employer updates via PUT body
-      const response = await api.put(EMPLOYER_BASE, employeeData)
-      return response.data
+      const response = await api.put(EMPLOYER_BASE, employeeData);
+      return response.data;
 
     } catch (error) {
-      console.error('Error updating employee:', error)
-      throw error
+      console.error('Error updating employee:', error);
+      throw error;
     }
   },
 
@@ -106,11 +105,11 @@ export const employeeService = {
   // ---------------------------------------------------------
   deleteEmployee: async (id) => {
     try {
-      const response = await api.delete(`${EMPLOYER_BASE}?id=${id}`)
-      return response.data
+      const response = await api.delete(`${EMPLOYER_BASE}?id=${id}`);
+      return response.data;
     } catch (error) {
-      console.error('Error deleting employee:', error)
-      throw error
+      console.error('Error deleting employee:', error);
+      throw error;
     }
   },
 
@@ -121,32 +120,83 @@ export const employeeService = {
     try {
       const response = await api.get(EMPLOYER_BASE, {
         params: { search: query }
-      })
-      return response.data
+      });
+      return response.data;
     } catch (error) {
-      console.error('Error searching employees:', error)
-      throw error
+      console.error('Error searching employees:', error);
+      throw error;
     }
   },
 
+  // ---------------------------------------------------------
+  // EMPLOYEE ESS UPDATE OWN PROFILE
+  // ---------------------------------------------------------
   updateMyProfile(data) {
-  const allowed = {
-    phone: data.phone,
-    personal_email: data.personal_email,
-    emergency_contact_name: data.emergency_contact_name,
-    emergency_contact_phone: data.emergency_contact_phone,
-  };
-  
-  return api.put(ESS_PROFILE, allowed);
-  
-},
+    const allowed = {
+      phone: data.phone,
+      personal_email: data.personal_email,
+      emergency_contact_name: data.emergency_contact_name,
+      emergency_contact_phone: data.emergency_contact_phone,
+    };
 
-getNextEmployeeNo: async () => {
+    return api.put(ESS_PROFILE, allowed);
+  },
+
+  // ---------------------------------------------------------
+  // NEXT EMPLOYEE NO
+  // ---------------------------------------------------------
+  getNextEmployeeNo: async () => {
     const response = await api.get("/employer/next_employee_no.php");
     return response.data;
   },
+
+  // ---------------------------------------------------------
+  // EMPLOYER — BULK EMPLOYEE UPLOAD (CSV)
+  // ---------------------------------------------------------
+  bulkUploadEmployees: async (file) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await api.post(
+        EMPLOYER_BULK_UPLOAD,
+        formData,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        }
+      );
+
+      return response.data; // { success, preview, summary, failed_rows }
+
+    } catch (error) {
+      console.error('Error bulk uploading employees:', error);
+      throw error;
+    }
+  },
+
+  // ---------------------------------------------------------
+  // EMPLOYER — BULK PREVIEW (CSV)
+  // ---------------------------------------------------------
+  previewBulkUpload: async (file) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('mode', 'preview');
+
+      const response = await api.post(
+        EMPLOYER_BULK_UPLOAD,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+
+      return response.data;
+
+    } catch (error) {
+      console.error('Error previewing CSV:', error);
+      throw error;
+    }
+  }
+
 };
-
-
 
 export default employeeService;

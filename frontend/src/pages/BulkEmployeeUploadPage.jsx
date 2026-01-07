@@ -5,7 +5,7 @@ import {
   Chip, CircularProgress, Dialog, DialogTitle,
   DialogContent, DialogActions
 } from '@mui/material';
-import axios from 'axios';
+import employeeService from '../services/employeeService';
 
 export default function BulkEmployeeUploadPage() {
   const [file, setFile] = useState(null);
@@ -15,7 +15,6 @@ export default function BulkEmployeeUploadPage() {
   const [loading, setLoading] = useState(false);
 
   /* ================= FILE HANDLING ================= */
-
   const handleFileChange = (e) => {
     const selected = e.target.files[0];
     if (!selected) return;
@@ -36,21 +35,13 @@ export default function BulkEmployeeUploadPage() {
   };
 
   /* ================= PREVIEW ================= */
-
   const handlePreview = async () => {
     if (!file) return;
     setLoading(true);
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('mode', 'preview');
-
     try {
-      const res = await axios.post(
-        '/api/employer/employees_bulk_upload.php',
-        formData
-      );
-      setPreviewData(res.data);
+      const res = await employeeService.previewBulkUpload(file);
+      setPreviewData(res);
       setStep('preview');
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to preview CSV');
@@ -60,44 +51,25 @@ export default function BulkEmployeeUploadPage() {
   };
 
   /* ================= UPLOAD ================= */
-
   const handleUpload = async () => {
-    if (!file || !previewData) return;
-
-    const valid =
-      previewData.total_rows - previewData.rows_with_errors;
-
-    const proceed = window.confirm(
-      `This will upload ${valid} employees.\n` +
-      `${previewData.rows_with_errors} rows will be skipped.\n\nProceed?`
-    );
-
-    if (!proceed) return;
-
-    setLoading(true);
-    setStep('uploading');
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('mode', 'upload');
+    if (!file) return;
 
     try {
-      const res = await axios.post(
-        '/api/employer/employees_bulk_upload.php',
-        formData
-      );
-      setUploadResult(res.data);
+      setStep('uploading');
+
+      const result = await employeeService.bulkUploadEmployees(file);
+
+      setUploadResult(result);
       setStep('result');
+
     } catch (err) {
+      console.error(err);
       alert(err.response?.data?.message || 'Upload failed');
       setStep('preview');
-    } finally {
-      setLoading(false);
     }
   };
 
   /* ================= RENDER ================= */
-
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" gutterBottom>
@@ -232,7 +204,7 @@ function CSVPreviewTable({ previewData }) {
 
 function ValidationSummary({ previewData, onConfirm, loading }) {
   const total = previewData.total_rows;
-  const failed = previewData.rows_with_errors;
+  const failed = previewData.rows_with_errors || 0;
   const valid = total - failed;
 
   return (
