@@ -1,4 +1,8 @@
 <?php
+/**
+ * backend/api/employer/next_employee_no.php
+ *  NEXT EMPLOYEE NUMBER */
+
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../middleware/SecurityMiddleware.php';
 

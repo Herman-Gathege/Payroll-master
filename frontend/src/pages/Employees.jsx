@@ -87,7 +87,7 @@ export default function Employees() {
               fontWeight: 500,
             }}
           >
-            Download Template
+            Download Bulk Template
           </Button>
 
           <Button
@@ -103,7 +103,7 @@ export default function Employees() {
               fontWeight: 500,
             }}
           >
-            Bulk Upload
+            Upload Employees in Bulk
           </Button>
 
           {/* ADD EMPLOYEE BUTTON */}
@@ -123,7 +123,7 @@ export default function Employees() {
               },
             }}
           >
-            Add Employee
+            Add One Employee
           </Button>
         </Box>
       </Box>
