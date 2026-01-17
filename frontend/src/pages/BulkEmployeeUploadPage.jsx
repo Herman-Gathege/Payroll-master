@@ -35,8 +35,8 @@ export default function BulkEmployeeUploadPage() {
     const selected = e.target.files[0];
     if (!selected) return;
 
-    if (!selected.name.endsWith(".csv")) {
-      alert("Only CSV files are allowed");
+    if (!/\.(csv|xlsx|xls)$/i.test(selected.name)) {
+      alert("Only CSV or Excel files are allowed");
       return;
     }
 
@@ -160,14 +160,15 @@ function UploadCSVCard({ file, onFileChange, onPreview, loading }) {
   return (
     <Card sx={{ mb: 3 }}>
       <CardContent>
-        <Typography variant="h6">Select CSV File</Typography>
+        <Typography variant="h6">Select CSV or Excel File</Typography>
         <input
           type="file"
-          accept=".csv"
+          accept=".csv, .xlsx, .xls"
           onChange={onFileChange}
           disabled={!!file}
           style={{ marginTop: 10 }}
         />
+
         <Box sx={{ mt: 2 }}>
           <Button
             variant="contained"

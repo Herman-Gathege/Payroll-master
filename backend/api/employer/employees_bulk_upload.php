@@ -58,35 +58,72 @@ if (!$org) {
 
 $organization_id = (int)$org['organization_id'];
 
+
 // =========================================================
-// STEP 4 — CSV PARSING
+// STEP 4 — FILE PARSING (CSV OR EXCEL)
+require_once __DIR__ . '/../../vendor/autoload.php';
+
+use PhpOffice\PhpSpreadsheet\IOFactory;
+
 if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
-    echo json_encode(['success'=>false,'message'=>'CSV file required']);
+    echo json_encode(['success'=>false,'message'=>'File required']);
     exit();
 }
 
 $rows = [];
 $headers = null;
+$filePath = $_FILES['file']['tmp_name'];
+$fileType = pathinfo($_FILES['file']['name'], PATHINFO_EXTENSION);
 
-if (($handle = fopen($_FILES['file']['tmp_name'], 'r')) !== false) {
-    while (($data = fgetcsv($handle, 2000, ',')) !== false) {
-        if (!$headers) {
+// ---------------- CSV ----------------
+if (in_array(strtolower($fileType), ['csv'])) {
+    if (($handle = fopen($filePath, 'r')) !== false) {
+        while (($data = fgetcsv($handle, 2000, ',')) !== false) {
+            if (!$headers) {
+                $headers = array_map(
+                    fn($h) => strtolower(trim(preg_replace('/\xEF\xBB\xBF/', '', $h))),
+                    $data
+                );
+                continue;
+            }
+            if (!array_filter($data)) continue;
+            $rows[] = array_combine($headers, array_map('trim', $data));
+        }
+        fclose($handle);
+    }
+}
+
+// ---------------- EXCEL ----------------
+elseif (in_array(strtolower($fileType), ['xls','xlsx'])) {
+    $spreadsheet = IOFactory::load($filePath);
+    $sheet = $spreadsheet->getActiveSheet();
+    foreach ($sheet->getRowIterator() as $rowIndex => $row) {
+        $cellIterator = $row->getCellIterator();
+        $cellIterator->setIterateOnlyExistingCells(false);
+        $data = [];
+        foreach ($cellIterator as $cell) {
+            $data[] = $cell->getValue();
+        }
+
+        if ($rowIndex === 1) { // Header row
             $headers = array_map(
-                fn($h) => strtolower(trim(preg_replace('/\xEF\xBB\xBF/', '', $h))),
+                fn($h) => strtolower(trim($h)),
                 $data
             );
             continue;
         }
-        if (!array_filter($data)) continue;
+
+        if (!array_filter($data)) continue; // skip empty rows
         $rows[] = array_combine($headers, array_map('trim', $data));
     }
-    fclose($handle);
 }
 
+// ---------------- VALIDATION ----------------
 if (!$rows) {
-    echo json_encode(['success'=>false,'message'=>'CSV has no data']);
+    echo json_encode(['success'=>false,'message'=>'Uploaded file has no data']);
     exit();
 }
+
 
 // =========================================================
 // STEP 5 — HEADER VALIDATION
