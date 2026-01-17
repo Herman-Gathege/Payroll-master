@@ -8,6 +8,7 @@ import api from "./api";
 const EMPLOYER_BASE = "/employer/employees.php";
 const ESS_PROFILE = "/employee/profile.php";
 const EMPLOYER_BULK_UPLOAD = "/employer/employees_bulk_upload.php";
+const EMPLOYER_BULK_TEMPLATE = "/employer/bulk_template.php";
 
 export const employeeService = {
   // ---------------------------------------------------------
@@ -183,6 +184,21 @@ export const employeeService = {
       return response.data;
     } catch (error) {
       console.error("Error previewing CSV:", error);
+      throw error;
+    }
+  },
+
+  // ---------------------------------------------------------
+  // EMPLOYER — DOWNLOAD BULK TEMPLATE
+  // ---------------------------------------------------------
+  downloadBulkTemplate: async () => {
+    try {
+      const response = await api.get(EMPLOYER_BULK_TEMPLATE, {
+        responseType: "blob",
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error downloading bulk template:", error);
       throw error;
     }
   },

@@ -18,7 +18,7 @@ import {
   IconButton,
   Chip,
 } from "@mui/material";
-import { Add, Edit, Visibility, Search, UploadFile } from "@mui/icons-material";
+import { Add, Edit, Visibility, Search, UploadFile, Download } from "@mui/icons-material";
 import employeeService from "../services/employeeService";
 
 export default function Employees() {
@@ -64,6 +64,32 @@ export default function Employees() {
 
         <Box>
           {/* ✅ BULK UPLOAD BUTTON */}
+          <Button
+            variant="outlined"
+            startIcon={<Download />}
+            onClick={async () => {
+              const blob = await employeeService.downloadBulkTemplate();
+              const url = window.URL.createObjectURL(blob);
+
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = "employee_bulk_upload_template.xlsx";
+              a.click();
+
+              window.URL.revokeObjectURL(url);
+            }}
+            sx={{
+              mr: 1,
+              borderRadius: "6px",
+              padding: "6px 16px",
+              fontSize: "13px",
+              textTransform: "none",
+              fontWeight: 500,
+            }}
+          >
+            Download Template
+          </Button>
+
           <Button
             variant="outlined"
             startIcon={<UploadFile />}
