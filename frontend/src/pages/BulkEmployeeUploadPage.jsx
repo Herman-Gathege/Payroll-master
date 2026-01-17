@@ -16,10 +16,10 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Alert,
 } from "@mui/material";
 import employeeService from "../services/employeeService";
 import { useQueryClient } from "react-query";
-
 
 export default function BulkEmployeeUploadPage() {
   const [file, setFile] = useState(null);
@@ -27,6 +27,7 @@ export default function BulkEmployeeUploadPage() {
   const [uploadResult, setUploadResult] = useState(null);
   const [step, setStep] = useState("upload"); // upload | preview | uploading | result
   const [loading, setLoading] = useState(false);
+
   const queryClient = useQueryClient();
 
   /* ================= FILE HANDLING ================= */
@@ -46,6 +47,7 @@ export default function BulkEmployeeUploadPage() {
 
     setFile(selected);
     setPreviewData(null);
+    setUploadResult(null);
     setStep("upload");
   };
 
@@ -56,7 +58,6 @@ export default function BulkEmployeeUploadPage() {
 
     try {
       const res = await employeeService.previewBulkUpload(file);
-      console.log("Preview data:", res);
       setPreviewData(res);
       setStep("preview");
     } catch (err) {
@@ -66,44 +67,43 @@ export default function BulkEmployeeUploadPage() {
     }
   };
 
-  /* ================= UPLOAD ================= */
-  // const handleUpload = async () => {
-  //   if (!file) return;
-
-  //   try {
-  //     setStep("uploading");
-
-  //     const result = await employeeService.bulkUploadEmployees(file);
-
-  //     setUploadResult(result);
-  //     setStep("result");
-  //   } catch (err) {
-  //     console.error(err);
-  //     alert(err.response?.data?.message || "Upload failed");
-  //     setStep("preview");
-  //   }
-  // };
-
+  /* ================= UPLOAD (FIXED) ================= */
   const handleUpload = async () => {
-  if (!file) return;
+    if (!file) return;
 
-  try {
-    setStep("uploading");
+    try {
+      setStep("uploading");
 
-    const result = await employeeService.bulkUploadEmployees(file);
+      const res = await employeeService.bulkUploadEmployees(file);
 
-    setUploadResult(result);
-    setStep("result");
+      // 🔒 NORMALIZE BACKEND RESPONSE
+      const normalizedResult = {
+        status:
+          res.status ||
+          (res.failed > 0 && res.inserted > 0
+            ? "partial_success"
+            : res.failed > 0
+            ? "error"
+            : "success"),
 
-    // REFRESH EMPLOYEE LIST
-    queryClient.invalidateQueries("employees"); // <-- refresh employees
-  } catch (err) {
-    console.error(err);
-    alert(err.response?.data?.message || "Upload failed");
-    setStep("preview");
-  }
-};
+        summary: {
+          total: res.summary?.total ?? res.total ?? 0,
+          inserted: res.summary?.inserted ?? res.inserted ?? 0,
+          failed: res.summary?.failed ?? res.failed ?? 0,
+        },
 
+        failed_rows: res.failed_rows ?? [],
+      };
+
+      setUploadResult(normalizedResult);
+      setStep("result");
+
+      queryClient.invalidateQueries("employees");
+    } catch (err) {
+      alert(err.response?.data?.message || "Upload failed");
+      setStep("preview");
+    }
+  };
 
   /* ================= RENDER ================= */
   return (
@@ -177,9 +177,6 @@ function UploadCSVCard({ file, onFileChange, onPreview, loading }) {
             Preview CSV
           </Button>
         </Box>
-        <Typography variant="body2" sx={{ mt: 1 }} color="text.secondary">
-          CSV headers must match required employee fields.
-        </Typography>
       </CardContent>
     </Card>
   );
@@ -191,54 +188,59 @@ function CSVPreviewTable({ previewData }) {
   return (
     <Card sx={{ mb: 2 }}>
       <CardContent>
-        <Typography variant="h6" gutterBottom>
-          Preview (First 10 Rows)
-        </Typography>
-        {rows.length === 0 ? (
-          <Typography>No preview available.</Typography>
-        ) : (
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Row #</TableCell>
-                <TableCell>Employee No</TableCell>
-                <TableCell>Name</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Errors</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {rows.map((row, index) => (
-                <TableRow
-                  key={row.employee_no || index} // use employee_no if unique
-                  sx={{
-                    bgcolor: row.errors?.length
-                      ? "rgba(255,0,0,0.08)"
-                      : "inherit",
-                  }}
-                >
-                  <TableCell>{index + 1}</TableCell>
-                  <TableCell>{row.employee_no}</TableCell>
-                  <TableCell>
-                    {row.first_name} {row.last_name}
-                  </TableCell>
-                  <TableCell>{row.work_email}</TableCell>
-                  <TableCell>
-                    {row.errors?.map((err, i) => (
+        <Typography variant="h6">Preview (First 10 Rows)</Typography>
+
+        {previewData?.has_errors && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Some rows contain errors. Fix them before uploading.
+          </Alert>
+        )}
+
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Row</TableCell>
+              <TableCell>Employee No</TableCell>
+              <TableCell>Name</TableCell>
+              <TableCell>Email</TableCell>
+              <TableCell>Status</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {rows.map((row) => (
+              <TableRow
+                key={row.row}
+                sx={{
+                  bgcolor: row.is_valid
+                    ? "rgba(0,128,0,0.06)"
+                    : "rgba(255,0,0,0.08)",
+                }}
+              >
+                <TableCell>{row.row}</TableCell>
+                <TableCell>{row.employee_no}</TableCell>
+                <TableCell>
+                  {row.first_name} {row.last_name}
+                </TableCell>
+                <TableCell>{row.work_email}</TableCell>
+                <TableCell>
+                  {row.is_valid ? (
+                    <Chip label="Valid" size="small" color="success" />
+                  ) : (
+                    row.errors.map((err, i) => (
                       <Chip
                         key={i}
-                        label={err}
+                        label={err.message || err}
                         size="small"
                         color="error"
                         sx={{ mr: 0.5, mb: 0.5 }}
                       />
-                    ))}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
+                    ))
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </CardContent>
     </Card>
   );
@@ -246,24 +248,24 @@ function CSVPreviewTable({ previewData }) {
 
 function ValidationSummary({ previewData, onConfirm, loading }) {
   const rows = previewData.preview || [];
-
-  const failed = rows.filter(
-    (row) => row.errors && row.errors.length > 0
-  ).length;
-  const total = rows.length;
-  const valid = total - failed;
+  const failed = rows.filter((r) => !r.is_valid).length;
 
   return (
     <Card sx={{ mb: 3 }}>
       <CardContent>
-        <Typography>Total rows: {total}</Typography>
-        <Typography>Rows with errors: {failed}</Typography>
-        <Typography>Rows ready for upload: {valid}</Typography>
+        <Typography>Total previewed rows: {rows.length}</Typography>
+        <Typography color={failed ? "error" : "success.main"}>
+          Rows with errors: {failed}
+        </Typography>
+        <Typography color="success.main">
+          Rows ready for upload: {rows.length - failed}
+        </Typography>
+
         <Box sx={{ mt: 2 }}>
           <Button
             variant="contained"
             onClick={onConfirm}
-            disabled={valid === 0 || loading}
+            disabled={failed > 0 || loading}
           >
             Confirm Upload
           </Button>
@@ -274,31 +276,47 @@ function ValidationSummary({ previewData, onConfirm, loading }) {
 }
 
 function UploadResultDialog({ uploadResult, onClose }) {
-  if (!uploadResult) return null; // safeguard
+  if (!uploadResult || !uploadResult.summary) return null;
 
-  const summary = uploadResult.summary || { total: 0, inserted: 0, failed: 0 };
+  const { summary, status, failed_rows = [] } = uploadResult;
 
   return (
     <Dialog open fullWidth maxWidth="md">
       <DialogTitle>Upload Result</DialogTitle>
       <DialogContent>
+        <Alert
+          severity={
+            status === "success"
+              ? "success"
+              : status === "partial_success"
+              ? "warning"
+              : "error"
+          }
+          sx={{ mb: 2 }}
+        >
+          {status === "success" && "All employees uploaded successfully."}
+          {status === "partial_success" &&
+            "Some employees were uploaded. Others failed."}
+          {status === "error" && "No employees were uploaded."}
+        </Alert>
+
         <Typography>Total Rows: {summary.total}</Typography>
         <Typography>Inserted: {summary.inserted}</Typography>
         <Typography>Failed: {summary.failed}</Typography>
 
-        {uploadResult.failed_rows?.length > 0 && (
-          <Box sx={{ mt: 2 }}>
+        {failed_rows.length > 0 && (
+          <Box sx={{ mt: 3 }}>
             <Typography variant="subtitle1">Failed Rows</Typography>
             <Table size="small">
               <TableBody>
-                {uploadResult.failed_rows.map((row) => (
+                {failed_rows.map((row) => (
                   <TableRow key={row.row}>
-                    <TableCell>{row.row}</TableCell>
+                    <TableCell>Row {row.row}</TableCell>
                     <TableCell>
                       {row.errors.map((err, i) => (
                         <Chip
                           key={i}
-                          label={err}
+                          label={err.message || err}
                           size="small"
                           color="error"
                           sx={{ mr: 0.5, mb: 0.5 }}
@@ -312,6 +330,7 @@ function UploadResultDialog({ uploadResult, onClose }) {
           </Box>
         )}
       </DialogContent>
+
       <DialogActions>
         <Button onClick={onClose} variant="contained">
           Close

@@ -71,8 +71,10 @@ $headers = null;
 if (($handle = fopen($_FILES['file']['tmp_name'], 'r')) !== false) {
     while (($data = fgetcsv($handle, 2000, ',')) !== false) {
         if (!$headers) {
-            $headers = array_map(fn($h) =>
-                strtolower(trim(preg_replace('/\xEF\xBB\xBF/', '', $h))), $data);
+            $headers = array_map(
+                fn($h) => strtolower(trim(preg_replace('/\xEF\xBB\xBF/', '', $h))),
+                $data
+            );
             continue;
         }
         if (!array_filter($data)) continue;
@@ -90,7 +92,8 @@ if (!$rows) {
 // STEP 5 — HEADER VALIDATION
 $requiredHeaders = [
     'employee_no','first_name','last_name','work_email','phone',
-    'gender','date_of_birth','hire_date','department_id','position_id','structure_id'
+    'gender','date_of_birth','hire_date',
+    'department_id','position_id','structure_id'
 ];
 
 $missing = array_diff($requiredHeaders, $headers);
@@ -109,41 +112,92 @@ $mode = $_POST['mode'] ?? 'preview';
 
 // =========================================================
 // STEP 7 — VALIDATION FUNCTION
-function validateEmployeeRow($row, $orgId, $db, $csvNos) {
+function validateEmployeeRow(array $row, int $orgId, PDO $db, array $csvNos): array {
     $errors = [];
 
     foreach (['employee_no','first_name','last_name','work_email'] as $f) {
-        if (empty($row[$f])) $errors[] = "$f missing";
+        if (empty($row[$f])) {
+            $errors[] = [
+                'field'=>$f,
+                'code'=>'REQUIRED',
+                'message'=>"$f is required"
+            ];
+        }
     }
 
-    if (!filter_var($row['work_email'], FILTER_VALIDATE_EMAIL))
-        $errors[] = 'invalid email';
+    if (!empty($row['work_email']) &&
+        !filter_var($row['work_email'], FILTER_VALIDATE_EMAIL)) {
+        $errors[] = [
+            'field'=>'work_email',
+            'code'=>'INVALID_EMAIL',
+            'message'=>'Invalid email format'
+        ];
+    }
 
-    if (!in_array($row['gender'], ['Male','Female','Other']))
-        $errors[] = 'invalid gender';
+    if (!in_array($row['gender'], ['Male','Female','Other'], true)) {
+        $errors[] = [
+            'field'=>'gender',
+            'code'=>'INVALID_VALUE',
+            'message'=>'Gender must be Male, Female, or Other'
+        ];
+    }
 
     foreach (['date_of_birth','hire_date'] as $d) {
-        if (!DateTime::createFromFormat('m-d-Y', $row[$d]))
-            $errors[] = "invalid $d";
+        if (!DateTime::createFromFormat('m-d-Y', $row[$d])) {
+            $errors[] = [
+                'field'=>$d,
+                'code'=>'INVALID_DATE',
+                'message'=>'Date must be in MM-DD-YYYY format'
+            ];
+        }
     }
 
-    if (count(array_keys($csvNos, $row['employee_no'])) > 1)
-        $errors[] = 'duplicate employee_no in CSV';
+    if (count(array_keys($csvNos, $row['employee_no'])) > 1) {
+        $errors[] = [
+            'field'=>'employee_no',
+            'code'=>'DUPLICATE_CSV',
+            'message'=>'Duplicate employee number in CSV'
+        ];
+    }
 
     // Existing employee
-    $stmt = $db->prepare("SELECT id FROM employees WHERE employee_no=:e AND organization_id=:o");
+    $stmt = $db->prepare("
+        SELECT id FROM employees
+        WHERE employee_no=:e AND organization_id=:o
+    ");
     $stmt->execute([':e'=>$row['employee_no'], ':o'=>$orgId]);
-    if ($stmt->fetch()) $errors[] = 'employee_no already exists';
+    if ($stmt->fetch()) {
+        $errors[] = [
+            'field'=>'employee_no',
+            'code'=>'EXISTS',
+            'message'=>'Employee number already exists'
+        ];
+    }
 
     // Department
-    $stmt = $db->prepare("SELECT id FROM departments WHERE id=:id AND organization_id=:o");
+    $stmt = $db->prepare("
+        SELECT id FROM departments
+        WHERE id=:id AND organization_id=:o
+    ");
     $stmt->execute([':id'=>$row['department_id'], ':o'=>$orgId]);
-    if (!$stmt->fetch()) $errors[] = 'invalid department_id';
+    if (!$stmt->fetch()) {
+        $errors[] = [
+            'field'=>'department_id',
+            'code'=>'INVALID_FK',
+            'message'=>'Invalid department'
+        ];
+    }
 
     // Position
     $stmt = $db->prepare("SELECT id FROM positions WHERE id=:id");
     $stmt->execute([':id'=>$row['position_id']]);
-    if (!$stmt->fetch()) $errors[] = 'invalid position_id';
+    if (!$stmt->fetch()) {
+        $errors[] = [
+            'field'=>'position_id',
+            'code'=>'INVALID_FK',
+            'message'=>'Invalid position'
+        ];
+    }
 
     // Salary structure
     $stmt = $db->prepare("
@@ -151,20 +205,39 @@ function validateEmployeeRow($row, $orgId, $db, $csvNos) {
         WHERE id=:id AND organization_id=:o AND status='active'
     ");
     $stmt->execute([':id'=>$row['structure_id'], ':o'=>$orgId]);
-    if (!$stmt->fetch()) $errors[] = 'invalid salary structure';
+    if (!$stmt->fetch()) {
+        $errors[] = [
+            'field'=>'structure_id',
+            'code'=>'INVALID_FK',
+            'message'=>'Invalid or inactive salary structure'
+        ];
+    }
 
     return $errors;
 }
 
 // =========================================================
-// STEP 8 — PREVIEW
+// STEP 8 — PREVIEW (NOW VALIDATES)
 if ($mode === 'preview') {
-    $preview = array_slice($rows, 0, 10);
-    foreach ($preview as $i => &$r) {
-        $r['row'] = $i + 2;
-        $r['errors'] = [];
+    $csvNos = array_column($rows, 'employee_no');
+    $preview = [];
+
+    foreach (array_slice($rows, 0, 10) as $i => $row) {
+        $errors = validateEmployeeRow($row, $organization_id, $db, $csvNos);
+
+        $preview[] = array_merge($row, [
+            'row' => $i + 2,
+            'is_valid' => empty($errors),
+            'errors' => $errors
+        ]);
     }
-    echo json_encode(['success'=>true,'preview'=>$preview,'total_rows'=>count($rows)]);
+
+    echo json_encode([
+        'success'=>true,
+        'preview'=>$preview,
+        'total_rows'=>count($rows),
+        'has_errors'=>array_filter($preview, fn($r)=>!$r['is_valid']) ? true : false
+    ]);
     exit();
 }
 
@@ -192,8 +265,13 @@ try {
 
     foreach ($rows as $i => $row) {
         $errors = validateEmployeeRow($row, $organization_id, $db, $csvNos);
+
         if ($errors) {
-            $failed[] = ['row'=>$i+2,'employee_no'=>$row['employee_no'],'errors'=>$errors];
+            $failed[] = [
+                'row'=>$i+2,
+                'employee_no'=>$row['employee_no'],
+                'errors'=>$errors
+            ];
             continue;
         }
 
@@ -213,27 +291,21 @@ try {
 
         $employeeId = $db->lastInsertId();
 
-        // Assign salary structure
-        $stmt = $db->prepare("
-            INSERT INTO employee_salary_structure (
-                employee_id, structure_id, assigned_by, effective_from, is_active
-            ) VALUES (
-                :emp,:structure,:by,CURDATE(),1
-            )
-        ");
-        $stmt->execute([
-            ':emp'=>$employeeId,
-            ':structure'=>$row['structure_id'],
-            ':by'=>$session['user_id']
+        $db->prepare("
+            INSERT INTO employee_salary_structure
+            (employee_id, structure_id, assigned_by, effective_from, is_active)
+            VALUES (:e,:s,:b,CURDATE(),1)
+        ")->execute([
+            ':e'=>$employeeId,
+            ':s'=>$row['structure_id'],
+            ':b'=>$session['user_id']
         ]);
 
-        // Create user login
-        $stmtUser = $db->prepare("
+        $db->prepare("
             INSERT INTO employee_users (employee_id, username, password_hash)
-            VALUES (:id,:u,:p)
-        ");
-        $stmtUser->execute([
-            ':id'=>$employeeId,
+            VALUES (:i,:u,:p)
+        ")->execute([
+            ':i'=>$employeeId,
             ':u'=>$row['work_email'],
             ':p'=>password_hash('Welcome@2025', PASSWORD_DEFAULT)
         ]);
@@ -241,18 +313,35 @@ try {
         $inserted[] = $row['employee_no'];
     }
 
+    if (count($inserted) === 0) {
+        $db->rollBack();
+        echo json_encode([
+            'success'=>false,
+            'message'=>'No employees were uploaded',
+            'failed_rows'=>$failed
+        ]);
+        exit();
+    }
+
     $db->commit();
 
 } catch (Throwable $e) {
     $db->rollBack();
-    echo json_encode(['success'=>false,'message'=>'Bulk upload failed','error'=>$e->getMessage()]);
+    echo json_encode([
+        'success'=>false,
+        'message'=>'Bulk upload failed',
+        'error'=>$e->getMessage()
+    ]);
     exit();
 }
 
 // =========================================================
 // STEP 10 — RESPONSE
+$status = count($failed) > 0 ? 'partial_success' : 'success';
+
 echo json_encode([
-    'success'=>true,
+    'success'=>$status === 'success',
+    'status'=>$status,
     'summary'=>[
         'total'=>count($rows),
         'inserted'=>count($inserted),
