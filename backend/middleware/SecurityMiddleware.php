@@ -238,6 +238,7 @@ class SecurityMiddleware {
                 SELECT 
                     us.user_id,
                     us.user_type,
+                    us.organization_id,
                     eu.employee_id
                 FROM user_sessions us
                 LEFT JOIN employee_users eu ON us.user_id = eu.id AND us.user_type = 'employee'
@@ -260,6 +261,10 @@ class SecurityMiddleware {
             // Ensure employee_id is properly set (null for HR, actual ID for employees)
             $session['employee_id'] = ($session['user_type'] === 'employee') 
                 ? (int)$session['employee_id'] 
+                : null;
+
+            $session['organization_id'] = isset($session['organization_id']) 
+                ? (int)$session['organization_id'] 
                 : null;
 
             return $session;

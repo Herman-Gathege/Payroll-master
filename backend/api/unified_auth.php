@@ -191,20 +191,31 @@ try {
     $token = bin2hex(random_bytes(32));
     $expires = date('Y-m-d H:i:s', strtotime('+24 hours'));
 
+    // Determine organization_id
+    $org_id = $user['organization_id'] ?? null;
+
+    if (!$org_id) {
+        // Fallback, but ideally this should never happen
+        $org_id = 1;
+    }
+
+    // Insert into user_sessions
     $session = $db->prepare("
         INSERT INTO user_sessions
-            (user_type, user_id, session_token, ip_address, user_agent, expires_at, is_active)
+            (user_type, user_id, organization_id, session_token, ip_address, user_agent, expires_at, is_active)
         VALUES
-            (:type, :uid, :token, :ip, :agent, :exp, 1)
+            (:type, :uid, :org, :token, :ip, :agent, :exp, 1)
     ");
     $session->execute([
-        ":type" => $user['user_type'],
-        ":uid" => $user['id'],
+        ":type"  => $user['user_type'],
+        ":uid"   => $user['id'],
+        ":org"   => $org_id,
         ":token" => $token,
-        ":ip" => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+        ":ip"    => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
         ":agent" => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
-        ":exp" => $expires
+        ":exp"   => $expires
     ]);
+
 
     // Reset failed attempts + update last_login
     $table = ($user['user_type'] == "employer") ? "employer_users" : "employee_users";

@@ -28,7 +28,14 @@ try {
 
 $user_id     = $session['user_id'] ?? null;
 $user_type   = $session['user_type'] ?? null;
-$employee_id = $session['employee_id'] ?? null;  // This is already set correctly by verifyToken() for employees
+$employee_id = $session['employee_id'] ?? null;
+$organization_id = $session['organization_id'] ?? null;
+
+if (!$organization_id) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'message' => 'Organization context missing']);
+    exit();
+}
 
 /* ========================================
    NEW: MY PAYSLIPS (Employee Self-Service)
@@ -54,11 +61,12 @@ if (isset($_GET['action']) && $_GET['action'] === 'my_payslips') {
             e.last_name
         FROM payroll p
         JOIN employees e ON p.employee_id = e.id
-        WHERE p.employee_id = ? 
-          AND p.status IN ('finalized', 'paid')
+        WHERE p.employee_id = ?
+        AND e.organization_id = ?
+        AND p.status IN ('finalized', 'paid')
         ORDER BY p.period_year DESC, p.period_month DESC
     ");
-    $stmt->execute([$employee_id]);
+    $stmt->execute([$employee_id, $organization_id]);
     $payslips = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     echo json_encode([
@@ -74,7 +82,7 @@ require_once __DIR__ . '/../controllers/PayrollController.php';
 require_once __DIR__ . '/../utils/PayslipGenerator.php';
 require_once __DIR__ . '/../utils/PayrollReportGenerator.php';
 
-$payrollController = new PayrollController($db);
+$payrollController = new PayrollController($db, $session);
 $method = $_SERVER['REQUEST_METHOD'];
 
 // Get the request URI

@@ -11,10 +11,16 @@ require_once __DIR__ . '/../config/payroll_config.php';
 class PayrollController {
     private $db;
     private $payroll;
+    private $organization_id;
 
-    public function __construct($db) {
+    public function __construct($db, $session) {
         $this->db = $db;
         $this->payroll = new Payroll($db);
+        $this->organization_id = $session['organization_id'] ?? null;
+
+        if (!$this->organization_id) {
+            throw new Exception('Organization context is missing in PayrollController');
+        }
     }
 
     /**
@@ -85,7 +91,8 @@ class PayrollController {
      */
     public function generateBulkPayroll($month, $year) {
     try {
-        $org_id = $_SESSION['user']['organization_id'] ?? 1;
+        $org_id = $this->organization_id;
+
 
         $stmt = $this->db->prepare("
             SELECT id 
@@ -194,13 +201,13 @@ class PayrollController {
      */
     private function savePayroll($data) {
     $sql = "INSERT INTO payroll
-            (employee_id, period_month, period_year, basic_salary,
+            (employee_id, organization_id, period_month, period_year, basic_salary,
             total_allowances,
             overtime_hours, absent_days, absence_deduction,
             gross_pay, paye, nssf_employee, shif, housing_levy,
             personal_relief, total_deductions, net_pay, status, created_at)
             VALUES
-            (:employee_id, :period_month, :period_year, :basic_salary,
+            (:employee_id, :organization_id, :period_month, :period_year, :basic_salary,
             :total_allowances,
             :overtime_hours, :absent_days, :absence_deduction,
             :gross_pay, :paye, :nssf_employee, :shif, :housing_levy,
@@ -223,6 +230,7 @@ class PayrollController {
             updated_at = NOW()";
 
     $stmt = $this->db->prepare($sql);
+    $data['organization_id'] = $this->organization_id;
     $stmt->execute($data);
 
     return $this->db->lastInsertId();
@@ -272,10 +280,13 @@ class PayrollController {
         JOIN employees e ON e.id = p.employee_id
         WHERE p.period_month = ?
           AND p.period_year = ?
+          AND p.organization_id = ?
+          AND e.organization_id = ?
+
         ORDER BY e.first_name ASC
     ");
-    
-    $stmt->execute([$month, $year]);
+
+    $stmt->execute([$month, $year, $this->organization_id, $this->organization_id]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     return [
@@ -307,6 +318,9 @@ public function getPayslip($employee_id, $month, $year)
         WHERE p.employee_id = :employee_id
           AND p.period_month = :month
           AND p.period_year  = :year
+          AND e.organization_id = :org_id
+          AND p.organization_id = :org_id
+
         LIMIT 1
     ";
 
@@ -314,7 +328,8 @@ public function getPayslip($employee_id, $month, $year)
     $stmt->execute([
         ':employee_id' => $employee_id,
         ':month'       => $month,
-        ':year'        => $year
+        ':year'        => $year,
+        ':org_id'      => $this->organization_id
     ]);
 
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -368,12 +383,14 @@ public function getPayrollSummary($month, $year)
         FROM payroll
         WHERE period_month = :month
         AND period_year = :year
+        AND organization_id = :org_id
     ";
 
     $stmt = $this->db->prepare($sql);
     $stmt->execute([
         ':month' => $month,
-        ':year' => $year
+        ':year' => $year,
+        ':org_id' => $this->organization_id
     ]);
 
     $summary = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -419,11 +436,12 @@ public function getPayrollById($payroll_id)
         LEFT JOIN employee_salary_structure es ON es.employee_id = e.id AND es.is_active = 1
 
         WHERE p.id = :pid
+        AND p.organization_id = :org_id
         LIMIT 1
     ";
 
     $stmt = $this->db->prepare($sql);
-    $stmt->execute([':pid' => $payroll_id]);
+    $stmt->execute([':pid' => $payroll_id, ':org_id' => $this->organization_id]);
     $p = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$p) {
@@ -509,9 +527,10 @@ public function approvePayroll($payroll_id) {
             UPDATE payroll 
             SET status = 'finalized'
             WHERE id = ? AND status = 'draft'
+            AND organization_id = ?
         ");
-        $stmt->execute([$payroll_id]);
-        
+        $stmt->execute([$payroll_id, $this->organization_id]);
+
         return $stmt->rowCount() > 0;
     } catch (Exception $e) {
         error_log("Approve payroll error: " . $e->getMessage());
