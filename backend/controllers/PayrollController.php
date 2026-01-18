@@ -143,41 +143,63 @@ class PayrollController {
 
    
 
-    private function calculateEarnings($structure, $attendance) {
-    $basic = floatval($structure['basic_salary']);
+    private function calculateEarnings($structure, $attendance)
+    {
+        $basic = (float)$structure['basic_salary'];
 
-    // Sum allowances
-    $allowances_total = 0;
-    foreach ($structure['allowances'] as $al) {
-        $allowances_total += floatval($al['amount']);
+        $housing = $transport = $medical = $other_allowances = 0;
+
+        foreach ($structure['allowances'] as $al) {
+            switch (strtolower($al['name'])) {
+                case 'housing':
+                case 'housing allowance':
+                    $housing += (float)$al['amount'];
+                    break;
+                case 'transport':
+                case 'transport allowance':
+                    $transport += (float)$al['amount'];
+                    break;
+                case 'medical':
+                case 'medical allowance':
+                    $medical += (float)$al['amount'];
+                    break;
+                default:
+                    $other_allowances += (float)$al['amount'];
+            }
+        }
+
+        $total_allowances = $housing + $transport + $medical + $other_allowances;
+
+        $overtime_hours = (float)($attendance['overtime_hours'] ?? 0);
+        $hourly_rate = $basic / 160;
+        $overtime_pay = round($overtime_hours * $hourly_rate * 1.5, 2);
+
+        $absent_days = (int)($attendance['absent_days'] ?? 0);
+        $daily_rate = $basic / 22;
+        $absence_deduction = round($absent_days * $daily_rate, 2);
+
+        $gross = $basic
+            + $total_allowances
+            + $overtime_pay
+            - $absence_deduction;
+
+        return [
+            'basic_salary'        => $basic,
+            'housing_allowance'   => $housing,
+            'transport_allowance' => $transport,
+            'medical_allowance'   => $medical,
+            'total_allowances'    => $total_allowances,
+
+            'overtime_hours'      => $overtime_hours,
+            'overtime_pay'        => $overtime_pay,
+
+            'absent_days'         => $absent_days,
+            'absence_deduction'   => $absence_deduction,
+
+            'gross_pay'           => round($gross, 2),
+        ];
     }
 
-    // Benefits are part of gross — no need to store separately
-    $benefits_total = 0;
-    foreach ($structure['benefits'] as $b) {
-        $benefits_total += floatval($b['amount']);
-    }
-
-    $overtime_hours = floatval($attendance['overtime_hours'] ?? 0);
-    $hourly_rate = $basic / 160;
-    $overtime_pay_amount = $overtime_hours * $hourly_rate * 1.5;
-
-    $abs_days = intval($attendance['absent_days'] ?? 0);
-    $daily_rate = $basic / 22;
-    $absence_deduction = $abs_days * $daily_rate;
-
-    $gross = $basic + $allowances_total + $benefits_total + $overtime_pay_amount - $absence_deduction;
-
-    return [
-        'basic_salary'       => $basic,
-        'total_allowances'   => round($allowances_total, 2),
-        'overtime_hours'     => $overtime_hours,
-        // REMOVED: 'overtime_pay' — not in payroll table
-        'absent_days'        => $abs_days,
-        'absence_deduction'  => round($absence_deduction, 2),
-        'gross_pay'          => round($gross, 2)
-    ];
-}
 
     /**
      * Attendance aggregation
@@ -200,41 +222,61 @@ class PayrollController {
      * Save payroll record
      */
     private function savePayroll($data) {
-    $sql = "INSERT INTO payroll
-            (employee_id, organization_id, period_month, period_year, basic_salary,
-            total_allowances,
-            overtime_hours, absent_days, absence_deduction,
-            gross_pay, paye, nssf_employee, shif, housing_levy,
-            personal_relief, total_deductions, net_pay, status, created_at)
-            VALUES
-            (:employee_id, :organization_id, :period_month, :period_year, :basic_salary,
-            :total_allowances,
-            :overtime_hours, :absent_days, :absence_deduction,
-            :gross_pay, :paye, :nssf_employee, :shif, :housing_levy,
-            :personal_relief, :total_deductions, :net_pay,
-            'draft', NOW())
-            ON DUPLICATE KEY UPDATE
-            basic_salary = VALUES(basic_salary),
-            total_allowances = VALUES(total_allowances),
-            overtime_hours = VALUES(overtime_hours),
-            absent_days = VALUES(absent_days),
-            absence_deduction = VALUES(absence_deduction),
-            gross_pay = VALUES(gross_pay),
-            paye = VALUES(paye),
-            nssf_employee = VALUES(nssf_employee),
-            shif = VALUES(shif),
-            housing_levy = VALUES(housing_levy),
-            personal_relief = VALUES(personal_relief),
-            total_deductions = VALUES(total_deductions),
-            net_pay = VALUES(net_pay),
-            updated_at = NOW()";
+        $sql = "INSERT INTO payroll
+                (employee_id, organization_id, period_month, period_year, basic_salary,
+                total_allowances,
+                overtime_hours, absent_days, absence_deduction,
+                gross_pay, paye, nssf_employee, shif, housing_levy,
+                personal_relief, total_deductions, net_pay, status, created_at)
+                VALUES
+                (:employee_id, :organization_id, :period_month, :period_year, :basic_salary,
+                :total_allowances,
+                :overtime_hours, :absent_days, :absence_deduction,
+                :gross_pay, :paye, :nssf_employee, :shif, :housing_levy,
+                :personal_relief, :total_deductions, :net_pay,
+                'draft', NOW())
+                ON DUPLICATE KEY UPDATE
+                basic_salary = VALUES(basic_salary),
+                total_allowances = VALUES(total_allowances),
+                overtime_hours = VALUES(overtime_hours),
+                absent_days = VALUES(absent_days),
+                absence_deduction = VALUES(absence_deduction),
+                gross_pay = VALUES(gross_pay),
+                paye = VALUES(paye),
+                nssf_employee = VALUES(nssf_employee),
+                shif = VALUES(shif),
+                housing_levy = VALUES(housing_levy),
+                personal_relief = VALUES(personal_relief),
+                total_deductions = VALUES(total_deductions),
+                net_pay = VALUES(net_pay),
+                updated_at = NOW()";
 
-    $stmt = $this->db->prepare($sql);
-    $data['organization_id'] = $this->organization_id;
-    $stmt->execute($data);
+        $stmt = $this->db->prepare($sql);
 
-    return $this->db->lastInsertId();
-}
+        // Explicitly bind only the placeholders that exist in SQL
+        $stmt->execute([
+            ':employee_id'       => $data['employee_id'],
+            ':organization_id'   => $this->organization_id,
+            ':period_month'      => $data['period_month'],
+            ':period_year'       => $data['period_year'],
+            ':basic_salary'      => $data['basic_salary'],
+            ':total_allowances'  => $data['total_allowances'],
+            ':overtime_hours'    => $data['overtime_hours'],
+            ':absent_days'       => $data['absent_days'],
+            ':absence_deduction' => $data['absence_deduction'],
+            ':gross_pay'         => $data['gross_pay'],
+            ':paye'              => $data['paye'],
+            ':nssf_employee'     => $data['nssf_employee'],
+            ':shif'              => $data['shif'],
+            ':housing_levy'      => $data['housing_levy'],
+            ':personal_relief'   => $data['personal_relief'],
+            ':total_deductions'  => $data['total_deductions'],
+            ':net_pay'           => $data['net_pay'],
+        ]);
+
+        return $this->db->lastInsertId();
+    }
+
 
     /**
      * Load employee’s active salary structure and allowances/benefits
@@ -268,7 +310,7 @@ class PayrollController {
     }
 
     public function getPayrollByPeriod($month, $year) {
-    $stmt = $this->db->prepare("
+    $sql = "
         SELECT 
             p.*,
             e.employee_no,
@@ -278,22 +320,29 @@ class PayrollController {
             e.id_number AS national_id
         FROM payroll p
         JOIN employees e ON e.id = p.employee_id
-        WHERE p.period_month = ?
-          AND p.period_year = ?
-          AND p.organization_id = ?
-          AND e.organization_id = ?
-
+        WHERE p.period_month = :period_month
+          AND p.period_year = :period_year
+          AND p.organization_id = :org_id_pay
+          AND e.organization_id = :org_id_emp
         ORDER BY e.first_name ASC
-    ");
+    ";
 
-    $stmt->execute([$month, $year, $this->organization_id, $this->organization_id]);
+    $stmt = $this->db->prepare($sql);
+    $stmt->execute([
+        ':period_month' => $month,
+        ':period_year'  => $year,
+        ':org_id_pay'   => $this->organization_id,
+        ':org_id_emp'   => $this->organization_id
+    ]);
+
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     return [
         'success' => true,
-        'data' => $rows
+        'data'    => $rows
     ];
 }
+
 
 
 public function getPayslip($employee_id, $month, $year)
@@ -306,21 +355,17 @@ public function getPayslip($employee_id, $month, $year)
             e.employee_no,
             e.work_email,
             e.personal_email,
-
             COALESCE(d.name, 'N/A')      AS department_name,
             COALESCE(pos.title, 'N/A')   AS position_title
-
         FROM payroll p
         JOIN employees e ON e.id = p.employee_id
-        LEFT JOIN departments d   ON e.department_id = d.id
-        LEFT JOIN positions pos   ON e.position_id   = pos.id
-
+        LEFT JOIN departments d ON e.department_id = d.id
+        LEFT JOIN positions pos ON e.position_id = pos.id
         WHERE p.employee_id = :employee_id
           AND p.period_month = :month
           AND p.period_year  = :year
-          AND e.organization_id = :org_id
-          AND p.organization_id = :org_id
-
+          AND e.organization_id = :org_id_emp
+          AND p.organization_id = :org_id_pay
         LIMIT 1
     ";
 
@@ -329,16 +374,13 @@ public function getPayslip($employee_id, $month, $year)
         ':employee_id' => $employee_id,
         ':month'       => $month,
         ':year'        => $year,
-        ':org_id'      => $this->organization_id
+        ':org_id_emp'  => $this->organization_id,
+        ':org_id_pay'  => $this->organization_id
     ]);
 
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$row) return null;
 
-    if (!$row) {
-        return null;
-    }
-
-    // THIS LINE WAS BROKEN BEFORE → NOW FIXED
     $fullName = trim($row['first_name'] . ' ' . ($row['last_name'] ?? ''));
 
     return [
@@ -346,15 +388,12 @@ public function getPayslip($employee_id, $month, $year)
         'employee_number'      => $row['employee_no'],
         'department'           => $row['department_name'],
         'position'             => $row['position_title'],
-
         'period_month'         => (int)$row['period_month'],
         'period_year'          => (int)$row['period_year'],
-
         'basic_salary'         => (float)$row['basic_salary'],
         'housing_allowance'    => (float)$row['housing_allowance'],
         'transport_allowance'  => (float)$row['transport_allowance'],
         'medical_allowance'    => (float)$row['medical_allowance'],
-
         'gross_pay'            => (float)$row['gross_pay'],
         'paye'                 => (float)$row['paye'],
         'nssf_employee'        => (float)$row['nssf_employee'],
@@ -363,13 +402,13 @@ public function getPayslip($employee_id, $month, $year)
         'personal_relief'      => (float)$row['personal_relief'],
         'total_deductions'     => (float)$row['total_deductions'],
         'net_pay'              => (float)$row['net_pay'],
-
         'overtime_pay'         => (float)$row['overtime_pay'],
         'overtime_hours'       => (float)$row['overtime_hours'],
         'absence_deduction'    => (float)$row['absence_deduction'],
         'absent_days'          => (int)$row['absent_days'],
     ];
 }
+
 
 
 public function getPayrollSummary($month, $year)
