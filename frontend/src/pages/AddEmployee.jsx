@@ -53,6 +53,62 @@ export default function AddEmployee() {
     country_code: "+254", // NEW DEFAULT FIELD
   });
 
+  const COUNTRY_CODES = [
+  // ===== AFRICA =====
+  { code: "+254", label: "🇰🇪 Kenya" },
+  { code: "+255", label: "🇹🇿 Tanzania" },
+  { code: "+256", label: "🇺🇬 Uganda" },
+  { code: "+250", label: "🇷🇼 Rwanda" },
+  { code: "+257", label: "🇧🇮 Burundi" },
+  { code: "+234", label: "🇳🇬 Nigeria" },
+  { code: "+233", label: "🇬🇭 Ghana" },
+  { code: "+27",  label: "🇿🇦 South Africa" },
+  { code: "+20",  label: "🇪🇬 Egypt" },
+  { code: "+212", label: "🇲🇦 Morocco" },
+  { code: "+216", label: "🇹🇳 Tunisia" },
+  { code: "+213", label: "🇩🇿 Algeria" },
+  { code: "+225", label: "🇨🇮 Côte d’Ivoire" },
+  { code: "+221", label: "🇸🇳 Senegal" },
+  { code: "+251", label: "🇪🇹 Ethiopia" },
+  { code: "+260", label: "🇿🇲 Zambia" },
+  { code: "+263", label: "🇿🇼 Zimbabwe" },
+
+  // ===== EUROPE =====
+  { code: "+44",  label: "🇬🇧 United Kingdom" },
+  { code: "+33",  label: "🇫🇷 France" },
+  { code: "+49",  label: "🇩🇪 Germany" },
+  { code: "+39",  label: "🇮🇹 Italy" },
+  { code: "+34",  label: "🇪🇸 Spain" },
+  { code: "+351", label: "🇵🇹 Portugal" },
+  { code: "+31",  label: "🇳🇱 Netherlands" },
+  { code: "+32",  label: "🇧🇪 Belgium" },
+  { code: "+41",  label: "🇨🇭 Switzerland" },
+  { code: "+46",  label: "🇸🇪 Sweden" },
+  { code: "+47",  label: "🇳🇴 Norway" },
+  { code: "+45",  label: "🇩🇰 Denmark" },
+  { code: "+48",  label: "🇵🇱 Poland" },
+  { code: "+43",  label: "🇦🇹 Austria" },
+  { code: "+30",  label: "🇬🇷 Greece" },
+
+  // ===== AMERICAS =====
+  { code: "+1",   label: "🇺🇸 United States" },
+  { code: "+1",   label: "🇨🇦 Canada" },
+  { code: "+52",  label: "🇲🇽 Mexico" },
+  { code: "+55",  label: "🇧🇷 Brazil" },
+  { code: "+54",  label: "🇦🇷 Argentina" },
+  { code: "+57",  label: "🇨🇴 Colombia" },
+  { code: "+56",  label: "🇨🇱 Chile" },
+  { code: "+51",  label: "🇵🇪 Peru" },
+  { code: "+58",  label: "🇻🇪 Venezuela" },
+  { code: "+593", label: "🇪🇨 Ecuador" },
+  { code: "+502", label: "🇬🇹 Guatemala" },
+  { code: "+506", label: "🇨🇷 Costa Rica" },
+  { code: "+507", label: "🇵🇦 Panama" },
+  { code: "+503", label: "🇸🇻 El Salvador" },
+  { code: "+595", label: "🇵🇾 Paraguay" }
+];
+
+
   const [departments, setDepartments] = useState([]);
   const [positions, setPositions] = useState([]);
   const [structures, setStructures] = useState([]);
@@ -349,10 +405,11 @@ export default function AddEmployee() {
                   onChange={handleChange}
                   sx={{ width: "50%" }}
                 >
-                  <MenuItem value="+254">🇰🇪 +254 (Kenya)</MenuItem>
-                  <MenuItem value="+255">🇹🇿 +255 (Tanzania)</MenuItem>
-                  <MenuItem value="+256">🇺🇬 +256 (Uganda)</MenuItem>
-                  {/* You can add more later */}
+                  {COUNTRY_CODES.map((c) => (
+                    <MenuItem key={`${c.code}-${c.label}`} value={c.code}>
+                      {c.label} ({c.code})
+                    </MenuItem>
+                  ))}
                 </TextField>
 
                 {/* Local Phone Number */}
